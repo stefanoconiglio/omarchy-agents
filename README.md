@@ -1,4 +1,60 @@
-# Agents
+# Agents, with the account
+
+Omarchy's Agents widget with one addition: under the plan in the panel's hero,
+the account each CLI is logged in with.
+
+```
+Claude Code                      Codex
+PRO                              EDU
+you@gmail.com                    you@university.edu
+Personal account
+```
+
+For Claude Code the second line is the seat's organization: "Personal account"
+for a plan of your own, the organization's name for a seat in someone else's
+(a company's or a university's Team or Enterprise plan). With several seats on
+one email address, that line tells them apart. Codex shows the email alone.
+
+Omarchy reads the plan from files that don't hold the account, so the panel
+reads it itself, with `jq`, when the shell starts, when the panel opens and on
+refresh (`r`):
+
+- Claude Code: `oauthAccount.emailAddress` and `.organizationName` in
+  `~/.claude.json` (`$CLAUDE_CONFIG_DIR/.claude.json` when that is set). The
+  service names a personal plan's organization `<email>'s Organization`.
+- Codex: the `email` claim of the id token in `~/.codex/auth.json`
+  (`$CODEX_HOME/auth.json`). Only the email leaves `jq`.
+
+After `/login` to another account, the next opening of the panel shows it. A
+file read while it is being rewritten keeps the last value; a missing file
+(logged out) hides the line. The code is in `Account.js`; `Panel.qml` only runs
+it and draws the lines.
+
+## Install
+
+```bash
+omarchy plugin add https://github.com/stefanoconiglio/omarchy-agents.git --enable
+```
+
+The widget declares itself a clone of `omarchy.agents`, so enabling it puts it
+in place of Omarchy's Agents widget with that widget's settings, and calls to
+`omarchy.agents` reach it. To go back:
+
+```bash
+omarchy plugin remove coniglio.agents
+```
+
+Requires Omarchy 4. The first commit is `omarchy plugin clone omarchy.agents`
+from Omarchy 4.0.4, unchanged; when an Omarchy update changes
+`/usr/share/omarchy/shell/plugins/agents/`, compare it with that commit and
+merge. After editing, `omarchy restart shell`.
+
+MIT, as Omarchy ([LICENSE](LICENSE)). Omarchy's own description of the widget
+follows.
+
+---
+
+## Agents (Omarchy)
 
 One bar icon and one panel for every AI coding subscription on the machine.
 The panel is strictly a display: it watches the usage records that

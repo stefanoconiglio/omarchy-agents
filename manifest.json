@@ -3,9 +3,9 @@
   "id": "coniglio.agents",
   "name": "My Agents",
   "version": "1.0.0",
-  "author": "Omarchy",
+  "author": "Stefano Coniglio, from Omarchy's Agents widget",
   "license": "MIT",
-  "description": "Claude Code, Codex, and Fireworks usage, limits, and pace in a native Omarchy bar panel.",
+  "description": "Omarchy's Agents panel, which also names the account each CLI is logged in with (for Claude Code, the seat's organization too).",
   "kinds": [
     "bar-widget"
   ],
