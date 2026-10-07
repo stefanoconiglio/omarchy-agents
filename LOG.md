@@ -118,3 +118,5 @@ close to its orange); all outlined widgets in the large type.
 - Checked on the live bar (Rosé Pine): all four large and bold, no QML error; forced through
   temporary hooks (removed): normal, orange #c57a53, red #ef4444 on all four; 5% and 100%.
 - Here: the two WidgetButtons replaced by bold Text numbers; README.
+- Seen by the user on Retro Fallout (dark theme): fine. Published (user's decision):
+  https://github.com/stefanoconiglio/omarchy-agents.
