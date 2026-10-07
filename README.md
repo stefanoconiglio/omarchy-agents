@@ -7,9 +7,14 @@ with.
 ## In the bar
 
 Left of the icon, as `󰔟 85%  󰃭 14%`: the share of the session (5-hour) and
-weekly limits used, Claude Code's by default. Each number is coloured by its
-own level: the bar's text colour, orange from 80%, red from 90%. Hover for the
-reset times; clicks do what the icon does.
+weekly limits used, Claude Code's by default, with the icon inside a soft
+outline that groups them. Each number is coloured by its own level: the bar's
+text colour, orange from 80%, red from 90%. The colours follow the theme
+(`Attention.qml`, `Attention.js`): its own orange and red when it has real
+ones, a standard orange and red where it doesn't (some themes give those names
+to green, grey or blue), either one darkened or lightened just enough to read
+at 3:1 against the bar. Hover for the reset times; clicks do what the icon
+does.
 
 - `barProvider` (default `claude`; `codex` for Codex's) picks whose limits.
   It does not follow the panel's tab: the icon names no provider, so the

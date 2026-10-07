@@ -71,17 +71,15 @@ Panel {
   }
 
   // Each number by its own level: the bar's text colour, orange from 80%, red
-  // from 90%. Fixed colours rather than the theme's: few themes have an
-  // orange. Mid-dark shades, readable on light and dark bars alike.
-  readonly property color barNormal: bar ? bar.barForeground : Color.foreground
-  readonly property color barWarning: "#ea580c"
-  readonly property color barCritical: "#dc2626"
+  // from 90% (Attention.qml: the theme's own orange and red when it has them,
+  // always readable on its bar). A soft outline groups numbers and icon.
+  Attention { id: attention; bar: root.bar }
 
   function barColor(w) {
-    if (!w) return barNormal
-    if (w.percent >= 0.9) return barCritical
-    if (w.percent >= 0.8) return barWarning
-    return barNormal
+    if (!w) return attention.normal
+    if (w.percent >= 0.9) return attention.red
+    if (w.percent >= 0.8) return attention.orange
+    return attention.normal
   }
 
   function barPercent(w) {
@@ -389,7 +387,7 @@ Panel {
   // is invisible, so the icon appears the moment the first scan finds usage and
   // stays away entirely on a machine that has never run either CLI.
   visible: providers.length > 0
-  implicitWidth: barFace.implicitWidth
+  implicitWidth: barVertical ? barFace.implicitWidth : outlineBox.width + Style.space(10)
   implicitHeight: barFace.implicitHeight
 
   onProviderIndexChanged: if (panelFlick) panelFlick.contentY = 0
@@ -457,9 +455,30 @@ Panel {
     onTriggered: root.barNowMs = Date.now()
   }
 
+  // Same geometry as the other outlined widgets: even width, height of the
+  // bar's parity, so centring leaves no half pixel.
+  Rectangle {
+    id: outlineBox
+    visible: !root.barVertical
+    anchors.centerIn: parent
+    width: {
+      var w = Math.ceil(barFace.implicitWidth) + Style.space(8)
+      return w % 2 === 0 ? w : w + 1
+    }
+    height: {
+      var size = root.bar ? root.bar.barSize : Style.bar.sizeHorizontal
+      var h = size - Style.space(6)
+      return (size - h) % 2 === 0 ? h : h - 1
+    }
+    radius: height / 2
+    color: "transparent"
+    border.width: Math.max(1, Math.round(Style.space(1.5)))
+    border.color: attention.outline
+  }
+
   Row {
     id: barFace
-    anchors.fill: parent
+    anchors.centerIn: parent
 
     WidgetButton {
       id: sessionButton
