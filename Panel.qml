@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "Account.js" as Account
 
 Panel {
   id: root
@@ -17,6 +18,29 @@ Panel {
   readonly property color surface: Color.popups.background
   readonly property color track: Style.selectedFillFor(foreground, Color.accent)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+
+  // The account each CLI is logged in with, under the plan in the hero:
+  // Omarchy reads the plan from files that don't hold it (Account.js).
+  readonly property string claudeConfigFile: {
+    var dir = Quickshell.env("CLAUDE_CONFIG_DIR")
+    return dir ? dir + "/.claude.json" : Quickshell.env("HOME") + "/.claude.json"
+  }
+  readonly property string codexAuthFile: (Quickshell.env("CODEX_HOME") || Quickshell.env("HOME") + "/.codex") + "/auth.json"
+  property var accountRecords: ({})
+  readonly property var accountLines: provider ? Account.lines(provider.providerId, accountRecords[provider.providerId]) : []
+
+  function setAccount(providerId, raw) {
+    var record = Account.parseRecord(raw)
+    if (!record) return
+    var next = Object.assign({}, accountRecords)
+    next[providerId] = record
+    accountRecords = next
+  }
+
+  function readAccount() {
+    if (!claudeAccountProc.running) claudeAccountProc.running = true
+    if (!codexAccountProc.running) codexAccountProc.running = true
+  }
 
   readonly property var providers: usage.enabledProviders
   // The selection follows the provider, not the slot it happens to sit in: a
@@ -57,6 +81,7 @@ Panel {
 
   function refreshNow() {
     usage.refreshAll(true)
+    readAccount()
   }
 
   function launchAgent() {
@@ -307,7 +332,22 @@ Panel {
     nowMs = Date.now()
     if (panelFlick) panelFlick.contentY = 0
     usage.refreshLimits()
+    readAccount()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  }
+
+  Component.onCompleted: readAccount()
+
+  Process {
+    id: claudeAccountProc
+    command: Account.accountProbe(root.claudeConfigFile, Account.claudeFilter())
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.setAccount("claude", text) }
+  }
+
+  Process {
+    id: codexAccountProc
+    command: Account.accountProbe(root.codexAuthFile, Account.codexFilter())
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.setAccount("codex", text) }
   }
 
   Main {
@@ -394,54 +434,77 @@ Panel {
           width: panelFlick.width
           spacing: Style.space(12)
 
-          // ---------- Hero: provider mark · name · plan ----------
-          PanelHero {
-            id: hero
-            visible: !!root.provider
+          // ---------- Hero: provider mark · name · plan · account ----------
+          Column {
             width: parent.width
-            title: root.provider ? root.provider.providerName : ""
-            meta: root.heroMeta(root.provider)
-            foreground: root.foreground
-            fontFamily: root.fontFamily
+            visible: !!root.provider
+            spacing: Style.space(6)
 
-            iconComponent: Component {
-              Item {
-                id: heroMark
-                property var candidates: root.iconCandidatesForProvider(root.provider, root.surface)
-                // Provider objects are rebuilt on every refresh, which churns the
-                // array's identity without changing its content. Restart the fallback
-                // walk only when the URLs change: re-pointing source at a URL whose
-                // load already failed emits no statusChanged, so an identity-only
-                // reset would strand the walker on a missing -light twin.
-                property string candidatesKey: candidates.join("\n")
-                property int candidateIndex: 0
-                onCandidatesKeyChanged: candidateIndex = 0
+            PanelHero {
+              id: hero
+              visible: !!root.provider
+              width: parent.width
+              title: root.provider ? root.provider.providerName : ""
+              meta: root.heroMeta(root.provider)
+              foreground: root.foreground
+              fontFamily: root.fontFamily
 
-                width: Style.font.display
-                height: Style.font.display
+              iconComponent: Component {
+                Item {
+                  id: heroMark
+                  property var candidates: root.iconCandidatesForProvider(root.provider, root.surface)
+                  // Provider objects are rebuilt on every refresh, which churns the
+                  // array's identity without changing its content. Restart the fallback
+                  // walk only when the URLs change: re-pointing source at a URL whose
+                  // load already failed emits no statusChanged, so an identity-only
+                  // reset would strand the walker on a missing -light twin.
+                  property string candidatesKey: candidates.join("\n")
+                  property int candidateIndex: 0
+                  onCandidatesKeyChanged: candidateIndex = 0
 
-                Image {
-                  id: heroMarkImage
-                  anchors.fill: parent
-                  source: heroMark.candidateIndex < heroMark.candidates.length ? heroMark.candidates[heroMark.candidateIndex] : ""
-                  sourceSize.width: Style.font.display * 2
-                  sourceSize.height: Style.font.display * 2
-                  fillMode: Image.PreserveAspectFit
-                  // Advancing source from inside its own status change trips the
-                  // binding-loop detector; defer the step one tick.
-                  onStatusChanged: if (status === Image.Error && heroMark.candidateIndex < heroMark.candidates.length)
-                    Qt.callLater(function() { heroMark.candidateIndex++ })
+                  width: Style.font.display
+                  height: Style.font.display
+
+                  Image {
+                    id: heroMarkImage
+                    anchors.fill: parent
+                    source: heroMark.candidateIndex < heroMark.candidates.length ? heroMark.candidates[heroMark.candidateIndex] : ""
+                    sourceSize.width: Style.font.display * 2
+                    sourceSize.height: Style.font.display * 2
+                    fillMode: Image.PreserveAspectFit
+                    // Advancing source from inside its own status change trips the
+                    // binding-loop detector; defer the step one tick.
+                    onStatusChanged: if (status === Image.Error && heroMark.candidateIndex < heroMark.candidates.length)
+                      Qt.callLater(function() { heroMark.candidateIndex++ })
+                  }
+
+                  Text {
+                    textFormat: Text.PlainText
+                    anchors.centerIn: parent
+                    visible: heroMarkImage.status !== Image.Ready
+                    text: button.text
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.display
+                  }
                 }
+              }
+            }
 
-                Text {
-                  textFormat: Text.PlainText
-                  anchors.centerIn: parent
-                  visible: heroMarkImage.status !== Image.Ready
-                  text: button.text
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.display
-                }
+            // The account, in its own case (the hero capitalises its meta
+            // line): the email, then for Claude the organization of the seat.
+            Repeater {
+              model: root.accountLines
+              Text {
+                required property string modelData
+                x: Style.font.display + Style.space(14)
+                width: parent.width - x
+                textFormat: Text.PlainText
+                text: modelData
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                elide: Text.ElideRight
               }
             }
           }
