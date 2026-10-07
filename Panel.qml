@@ -42,6 +42,63 @@ Panel {
     if (!codexAccountProc.running) codexAccountProc.running = true
   }
 
+  // ---------- bar numbers: session and weekly use, left of the icon ----------
+  //
+  // One provider's, Claude Code's unless `barProvider` says otherwise: the
+  // icon names no provider, so numbers that followed the panel's tab would
+  // change meaning unseen. A window whose reset time has passed shows 0 until
+  // the next refresh brings the new figure.
+  readonly property string barProviderId: String(setting("barProvider", "claude"))
+  readonly property int barRefreshSec: Math.max(60, Number(setting("barRefreshSec", 300)))
+  readonly property bool barVertical: bar ? bar.vertical === true : false
+  property double barNowMs: Date.now()
+  readonly property var barProvider: {
+    for (var i = 0; i < providers.length; i++)
+      if (providers[i].providerId === barProviderId) return providers[i]
+    return null
+  }
+  readonly property var barWindows: {
+    var found = { session: null, weekly: null }
+    var windows = limitWindows(barProvider)
+    for (var i = 0; i < windows.length; i++) {
+      var w = windows[i]
+      var reset = w.resetAt !== "" ? new Date(w.resetAt).getTime() : NaN
+      var current = { percent: isFinite(reset) && reset <= barNowMs ? 0 : w.percent, resetMs: isFinite(reset) ? reset - barNowMs : -1 }
+      if (w.title === "Session" && !found.session) found.session = current
+      else if (w.title === "Weekly" && !found.weekly) found.weekly = current
+    }
+    return found
+  }
+  readonly property bool barAlarming: (!!barWindows.session && barWindows.session.percent >= 0.9)
+    || (!!barWindows.weekly && barWindows.weekly.percent >= 0.9)
+
+  function barPercent(w) {
+    return Math.round(Math.max(0, w.percent) * 100) + "%"
+  }
+
+  function barLabel() {
+    var parts = []
+    if (barWindows.session) parts.push("󰔟 " + barPercent(barWindows.session))
+    if (barWindows.weekly) parts.push("󰃭 " + barPercent(barWindows.weekly))
+    return parts.join("  ")
+  }
+
+  function barTooltip() {
+    if (!barProvider) return ""
+    var lines = [barProvider.providerName]
+    if (barWindows.session) lines.push("󰔟 Session " + barPercent(barWindows.session)
+      + (barWindows.session.resetMs > 0 ? " · resets in " + formatDuration(barWindows.session.resetMs) : ""))
+    if (barWindows.weekly) lines.push("󰃭 Weekly " + barPercent(barWindows.weekly)
+      + (barWindows.weekly.resetMs > 0 ? " · resets in " + formatDuration(barWindows.weekly.resetMs) : ""))
+    return lines.join("\n")
+  }
+
+  function handleBarPress(buttonCode) {
+    if (buttonCode === Qt.RightButton) root.launchAgent()
+    else if (buttonCode === Qt.MiddleButton) root.selectProvider(root.providerIndex + 1)
+    else root.toggle()
+  }
+
   readonly property var providers: usage.enabledProviders
   // The selection follows the provider, not the slot it happens to sit in: a
   // provider whose first scan lands while the panel is open would otherwise
@@ -323,8 +380,8 @@ Panel {
   // is invisible, so the icon appears the moment the first scan finds usage and
   // stays away entirely on a machine that has never run either CLI.
   visible: providers.length > 0
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
+  implicitWidth: barFace.implicitWidth
+  implicitHeight: barFace.implicitHeight
 
   onProviderIndexChanged: if (panelFlick) panelFlick.contentY = 0
   onOpenedChanged: if (opened) {
@@ -375,22 +432,48 @@ Panel {
     function next(): string { root.selectProvider(root.providerIndex + 1); return "ok" }
   }
 
-  BarIconButton {
-    id: button
+  // The full refresh comes every refreshIntervalSec (15 min); the limits
+  // alone, a single request per provider, more often for the bar.
+  Timer {
+    interval: root.barRefreshSec * 1000
+    running: root.barProvider !== null
+    repeat: true
+    onTriggered: usage.refreshLimits()
+  }
+
+  Timer {
+    interval: 60000
+    running: true
+    repeat: true
+    onTriggered: root.barNowMs = Date.now()
+  }
+
+  Row {
+    id: barFace
     anchors.fill: parent
-    bar: root.bar
-    text: "󱚣"
-    active: root.alarming
-    onPressed: function(buttonCode) {
-      if (buttonCode === Qt.RightButton) root.launchAgent()
-      else if (buttonCode === Qt.MiddleButton) root.selectProvider(root.providerIndex + 1)
-      else root.toggle()
+
+    WidgetButton {
+      id: usageButton
+      bar: root.bar
+      text: root.barVertical ? "" : root.barLabel()
+      active: root.barAlarming
+      tooltipText: root.barTooltip()
+      horizontalMargin: 4
+      onPressed: function(buttonCode) { root.handleBarPress(buttonCode) }
+    }
+
+    BarIconButton {
+      id: button
+      bar: root.bar
+      text: "󱚣"
+      active: root.alarming
+      onPressed: function(buttonCode) { root.handleBarPress(buttonCode) }
     }
   }
 
   KeyboardPanel {
     id: panel
-    anchorItem: button
+    anchorItem: barFace
     owner: root
     bar: root.bar
     open: root.opened

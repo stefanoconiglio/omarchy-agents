@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "Stefano Coniglio, from Omarchy's Agents widget",
   "license": "MIT",
-  "description": "Omarchy's Agents panel, which also names the account each CLI is logged in with (for Claude Code, the seat's organization too).",
+  "description": "Omarchy's Agents widget, with the session and weekly use in the bar and the account each CLI is logged in with in the panel (for Claude Code, the seat's organization too).",
   "kinds": [
     "bar-widget"
   ],
