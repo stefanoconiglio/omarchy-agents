@@ -60,3 +60,16 @@ percentage of the session and weekly limits.
   +60 h, both past reset, 0% and 0%. Panel opens under the widget. No QML error.
 - Not checked: the urgent colour at 90% (no window there yet); a click on the numbers (same
   handler as the icon, which was checked through IPC only); a vertical bar.
+
+## 2026-10-07 05:35 CEST — Orange and red
+
+Request (user): colour the numbers, orange past 80%, red past 90%.
+
+- Two WidgetButtons, one per window, instead of one label, so each number takes its own colour:
+  `foreground` is the bar's text colour, `#ea580c` (orange) from 80%, `#dc2626` (red) from 90%,
+  on the unrounded fraction. The single urgent state from 90% is gone. Fixed colours, not the
+  theme's: few themes have an orange. Contrast on the light bar (#faf4ed-like) about 3.2:1 and
+  4.4:1, more on a dark one.
+- Checked on the live bar with a temporary hook (removed) forcing the fractions: 0.79 / 0.14
+  normal; 0.80 orange; 0.89 orange, 0.80 orange; 0.90 red, 0.85 orange; 0.97 and 0.93 red. Live
+  afterwards: session 87% orange, weekly 14% normal. Not seen on a dark theme.

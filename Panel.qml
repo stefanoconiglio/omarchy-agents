@@ -69,18 +69,27 @@ Panel {
     }
     return found
   }
-  readonly property bool barAlarming: (!!barWindows.session && barWindows.session.percent >= 0.9)
-    || (!!barWindows.weekly && barWindows.weekly.percent >= 0.9)
+
+  // Each number by its own level: the bar's text colour, orange from 80%, red
+  // from 90%. Fixed colours rather than the theme's: few themes have an
+  // orange. Mid-dark shades, readable on light and dark bars alike.
+  readonly property color barNormal: bar ? bar.barForeground : Color.foreground
+  readonly property color barWarning: "#ea580c"
+  readonly property color barCritical: "#dc2626"
+
+  function barColor(w) {
+    if (!w) return barNormal
+    if (w.percent >= 0.9) return barCritical
+    if (w.percent >= 0.8) return barWarning
+    return barNormal
+  }
 
   function barPercent(w) {
     return Math.round(Math.max(0, w.percent) * 100) + "%"
   }
 
-  function barLabel() {
-    var parts = []
-    if (barWindows.session) parts.push("󰔟 " + barPercent(barWindows.session))
-    if (barWindows.weekly) parts.push("󰃭 " + barPercent(barWindows.weekly))
-    return parts.join("  ")
+  function barLabel(w, glyph) {
+    return w && !barVertical ? glyph + " " + barPercent(w) : ""
   }
 
   function barTooltip() {
@@ -453,10 +462,20 @@ Panel {
     anchors.fill: parent
 
     WidgetButton {
-      id: usageButton
+      id: sessionButton
       bar: root.bar
-      text: root.barVertical ? "" : root.barLabel()
-      active: root.barAlarming
+      text: root.barLabel(root.barWindows.session, "󰔟")
+      foreground: root.barColor(root.barWindows.session)
+      tooltipText: root.barTooltip()
+      horizontalMargin: 4
+      onPressed: function(buttonCode) { root.handleBarPress(buttonCode) }
+    }
+
+    WidgetButton {
+      id: weeklyButton
+      bar: root.bar
+      text: root.barLabel(root.barWindows.weekly, "󰃭")
+      foreground: root.barColor(root.barWindows.weekly)
       tooltipText: root.barTooltip()
       horizontalMargin: 4
       onPressed: function(buttonCode) { root.handleBarPress(buttonCode) }
