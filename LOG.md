@@ -35,7 +35,7 @@ which is in the university's organization; the panel must tell them apart. Then 
 - Decision (user): own public repository, github.com/stefanoconiglio/omarchy-agents, symlinked
   into `~/.config/omarchy/plugins/coniglio.agents`.
 
-## 2026-10-07 05:35 CEST — Session and weekly use in the bar
+## 2026-10-07 05:31 CEST — Session and weekly use in the bar
 
 Request (user): left of the icon, two numbers like the Memory widget's (`󰍛 64%  󰓡 33%`): the
 percentage of the session and weekly limits.
