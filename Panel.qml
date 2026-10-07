@@ -480,24 +480,49 @@ Panel {
     id: barFace
     anchors.centerIn: parent
 
-    WidgetButton {
-      id: sessionButton
-      bar: root.bar
-      text: root.barLabel(root.barWindows.session, "󰔟")
-      foreground: root.barColor(root.barWindows.session)
-      tooltipText: root.barTooltip()
-      horizontalMargin: 4
-      onPressed: function(buttonCode) { root.handleBarPress(buttonCode) }
-    }
+    // The numbers in the outlined widgets' type (bold, title size), drawn by
+    // hand since WidgetButton has no bold: so the item registers as a click
+    // target and reports tooltipHovered itself, as WidgetButton would.
+    Item {
+      id: numbers
+      visible: root.barLabel(root.barWindows.session, "x") !== "" || root.barLabel(root.barWindows.weekly, "x") !== ""
+      width: visible ? numbersRow.width + Style.space(8) : 0
+      height: root.bar ? root.bar.barSize : Style.bar.sizeHorizontal
+      readonly property bool tooltipHovered: numbersMouse.containsMouse
 
-    WidgetButton {
-      id: weeklyButton
-      bar: root.bar
-      text: root.barLabel(root.barWindows.weekly, "󰃭")
-      foreground: root.barColor(root.barWindows.weekly)
-      tooltipText: root.barTooltip()
-      horizontalMargin: 4
-      onPressed: function(buttonCode) { root.handleBarPress(buttonCode) }
+      Component.onCompleted: if (root.bar && root.bar.registerClickTarget) root.bar.registerClickTarget(numbers)
+      Component.onDestruction: if (root.bar && root.bar.unregisterClickTarget) root.bar.unregisterClickTarget(numbers)
+
+      FontMetrics { id: numberMetrics; font: sessionText.font }
+      // Digits set the baseline, so the numbers sit centred in the bar.
+      TextMetrics { id: digitInk; font: sessionText.font; text: "88" }
+      // Room for two digits, so 9% turning into 10% doesn't move the bar.
+      TextMetrics { id: slotInk; font: sessionText.font; text: "󰔟 88%" }
+
+      Row {
+        id: numbersRow
+        x: Style.space(4)
+        y: Math.round((numbers.height - digitInk.tightBoundingRect.height) / 2
+                      - digitInk.tightBoundingRect.y - numberMetrics.ascent)
+        spacing: Style.space(10)
+
+        BarNumber { id: sessionText; window: root.barWindows.session; glyph: "󰔟" }
+        BarNumber { window: root.barWindows.weekly; glyph: "󰃭" }
+      }
+
+      MouseArea {
+        id: numbersMouse
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onEntered: if (root.bar) root.bar.showTooltip(numbers, root.barTooltip())
+        onExited: if (root.bar) root.bar.hideTooltip(numbers)
+        onClicked: function(mouse) {
+          if (root.bar) root.bar.hideTooltip(numbers)
+          root.handleBarPress(mouse.button)
+        }
+      }
     }
 
     BarIconButton {
@@ -507,6 +532,19 @@ Panel {
       active: root.alarming
       onPressed: function(buttonCode) { root.handleBarPress(buttonCode) }
     }
+  }
+
+  component BarNumber: Text {
+    property var window: null
+    property string glyph: ""
+    visible: text !== ""
+    width: Math.max(implicitWidth, slotInk.width)
+    textFormat: Text.PlainText
+    text: root.barLabel(window, glyph)
+    color: root.barColor(window)
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.title
+    font.bold: true
   }
 
   KeyboardPanel {
