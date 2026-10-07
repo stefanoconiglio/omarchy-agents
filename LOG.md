@@ -73,3 +73,31 @@ Request (user): colour the numbers, orange past 80%, red past 90%.
 - Checked on the live bar with a temporary hook (removed) forcing the fractions: 0.79 / 0.14
   normal; 0.80 orange; 0.89 orange, 0.80 orange; 0.90 red, 0.85 orange; 0.97 and 0.93 red. Live
   afterwards: session 87% orange, weekly 14% normal. Not seen on a dark theme.
+
+## 2026-10-07 18:37 CEST — Outline instead of the dark pill; colours from the theme
+
+Request (user): drop the dark fill; keep only the outline, softer, as a border grouping the items
+of one tool, the same on the battery, ping, Memory and Agents widgets. Normal values must stay
+readable on every theme. Decisions (user): softer outline; thresholds ping orange 50–100 ms, red
+from 100 ms and down; battery orange below 30%, red below 15%; Agents orange from 80%, red from
+90%; Memory orange from warnPercent (85), red from 90%.
+
+- Attention.js / Attention.qml, the same in each of the four plugins: normal text in the bar's
+  colour; the outline that colour at 45% opacity; orange and red from the theme's colors.toml
+  (`~/.local/state/omarchy/current/theme`) when they really are orange (hue 12–45°) or red
+  (340–12°) with HSV saturation at least 0.35, otherwise #f97316 / #ef4444; then darkened (light
+  bar) or lightened (dark bar) in 5% steps until 3:1 against the bar background (`bar.background`;
+  a transparent bar assumed black or white, opposite to its text). Reloaded when the file changes
+  and when the shell's theme colours change (theme-set sends them over IPC).
+- Measured on the 22 stock themes, contrast of the fixed colours against each bar background:
+  green #22c55e 2.0–2.3:1 on the five light themes, red #dc2626 2.6:1 on everforest and nord.
+  Theme colours as named: red 2.3:1 on miasma, 2.8:1 on solitude, orange 2.8:1 on rose-pine; and
+  several are not orange or red at all (hackerman green, vantablack and white grey, lumon blue,
+  lupine blue and magenta, matte-black orange = a red). After the rules: every orange and red at
+  3.05:1 or more, orange and red at least 16° of hue apart.
+- Checked on the live bar (rose-pine, light): all four outlined, no QML error; with temporary IPC
+  hooks (removed) forcing values: normal, orange #c57a53 (theme orange, raised from 2.8 to 3.1:1)
+  and red #b4637a (theme red) on all four. Not seen on a dark theme (the user's theme was not
+  changed).
+- Here: one outline around the two numbers and the icon; the fixed #ea580c / #dc2626 replaced;
+  README.
