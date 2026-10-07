@@ -34,3 +34,29 @@ which is in the university's organization; the panel must tell them apart. Then 
 - No preview image: it would publish the addresses.
 - Decision (user): own public repository, github.com/stefanoconiglio/omarchy-agents, symlinked
   into `~/.config/omarchy/plugins/coniglio.agents`.
+
+## 2026-10-07 05:35 CEST — Session and weekly use in the bar
+
+Request (user): left of the icon, two numbers like the Memory widget's (`󰍛 64%  󰓡 33%`): the
+percentage of the session and weekly limits.
+
+- Panel.qml: the bar face is a Row: a WidgetButton with `󰔟 85%  󰃭 14%` (Memory's style: glyph,
+  space, percentage, two spaces between), then Omarchy's icon button, unchanged. Both call the
+  same press handler (left: panel, right: launch an agent, middle: next provider); the panel
+  anchors to the row. The text button shows its own tooltip ("Session 85% · resets in 4h 19m",
+  weekly the same) and turns urgent when either window reaches 90%, Omarchy's threshold for the
+  icon. Hidden on a vertical bar.
+- Whose numbers: setting `barProvider`, default `claude`. Not the panel's selected tab: Omarchy's
+  icon alarm follows the tab, but numbers that switched provider with no name next to them would
+  be misread.
+- Windows found by the panel's own `limitWindows()` titles ("Session", "Weekly"), so Codex's
+  "5h window" works too. A window past its `resetsAt` shows 0% (clock ticks every 60 s).
+- Freshness: Omarchy refreshes everything every `refreshIntervalSec` (900 s); a new Timer runs
+  `usage.refreshLimits()` (`omarchy-agent-usage-update --limits-only`) every `barRefreshSec`,
+  default 300 s, minimum 60.
+- Checked on the live bar after `omarchy restart shell`: `󰔟 80%  󰃭 13%`, matching
+  `claude.json` (0.8, 0.13), then 85% / 14% after the restart's refresh. With a temporary IPC
+  hook (removed): tooltip text; clock +3 h, session still 1 h 19 min from reset, unchanged;
+  +60 h, both past reset, 0% and 0%. Panel opens under the widget. No QML error.
+- Not checked: the urgent colour at 90% (no window there yet); a click on the numbers (same
+  handler as the icon, which was checked through IPC only); a vertical bar.

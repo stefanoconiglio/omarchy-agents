@@ -1,7 +1,25 @@
-# Agents, with the account
+# Agents, with the account and the limits
 
-Omarchy's Agents widget with one addition: under the plan in the panel's hero,
-the account each CLI is logged in with.
+Omarchy's Agents widget with two additions: the session and weekly use in the
+bar, and under the plan in the panel's hero, the account each CLI is logged in
+with.
+
+## In the bar
+
+Left of the icon, as `󰔟 85%  󰃭 14%`: the share of the session (5-hour) and
+weekly limits used, Claude Code's by default. Both turn the theme's urgent
+colour from 90%. Hover for the reset times; clicks do what the icon does.
+
+- `barProvider` (default `claude`; `codex` for Codex's) picks whose limits.
+  It does not follow the panel's tab: the icon names no provider, so the
+  numbers would change meaning unseen.
+- `barRefreshSec` (default 300, at least 60): how often the limits alone are
+  fetched, one request per provider, the same one the panel makes when it
+  opens. Omarchy's full refresh (`refreshIntervalSec`, 900) still runs.
+- A window whose reset time has passed shows 0% until the next refresh.
+- On a vertical bar only the icon shows.
+
+## In the panel
 
 ```
 Claude Code                      Codex
