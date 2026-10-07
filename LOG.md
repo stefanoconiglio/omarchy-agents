@@ -101,3 +101,20 @@ from 100 ms and down; battery orange below 30%, red below 15%; Agents orange fro
   changed).
 - Here: one outline around the two numbers and the icon; the fixed #ea580c / #dc2626 replaced;
   README.
+
+## 2026-10-07 19:06 CEST — Standard red; large numbers everywhere
+
+Decisions (user): red is always the standard one (Rosé Pine's own red, #b4637a, is a muted rose,
+close to its orange); all outlined widgets in the large type.
+
+- Attention.js: red is #ef4444 on every theme, still raised to 3:1 against the bar; orange stays
+  the theme's when it really is orange, now hue 18–45° (was 12–45°: Catppuccin Latte's orange,
+  #d84e2b at 12°, was 12° from the red). On the 22 stock themes: theme orange used on 9, every
+  colour at 3.02:1 or more, orange and red at least 18° apart (Nord).
+- Memory and Agents: numbers drawn as Text, bold, `Style.font.title` (14 px), like the ping and
+  battery faces (WidgetButton has no bold); the item registers as a click target and reports
+  `tooltipHovered`; ink centred on the digits' bounding box; each number at least as wide as
+  "88%", so 9→10% doesn't move the bar (100% does, by a digit).
+- Checked on the live bar (Rosé Pine): all four large and bold, no QML error; forced through
+  temporary hooks (removed): normal, orange #c57a53, red #ef4444 on all four; 5% and 100%.
+- Here: the two WidgetButtons replaced by bold Text numbers; README.
