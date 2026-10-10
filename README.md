@@ -67,13 +67,25 @@ Session 42% · 1h 50m   Weekly 63% · 3d 4h
 ```
 
 Every time a provider's limits come in (on every bar refresh, every 5 minutes,
-open panel or not), the panel reads the account again and files the limits
-under it, in `~/.local/state/omarchy/agents/accounts.json`: one entry per
-provider, email and organization, so two seats on one email stay apart. The
-account you are logged in with now is left out of the list (its limits are
-the section above). A window whose reset time has passed reads `0% · reset`;
-a session window not yet opened has no reset time. Deleting the file forgets
-the accounts. The code is in `Seats.js` (tests: `node Seats.test.js`).
+open panel or not), they are filed under the account they were measured on,
+in `~/.local/state/omarchy/agents/accounts.json`: one entry per provider,
+email and organization, so two seats on one email stay apart.
+
+- Claude Code: `claude-seat.sh` asks Anthropic (`api/oauth/profile`) whose
+  login token the collector probed with; the answer is cached per token in
+  `~/.cache/omarchy/agents/profiles/`, so that is one request per login or
+  token refresh. Only a fresh probe is filed: one not filed before and made
+  after the credentials last changed. `~/.claude.json`, which the hero reads,
+  can name another seat for a while after a switch (every running Claude Code
+  rewrites it), and Omarchy's collector reuses its last figures for a few
+  minutes, and whenever a probe fails, whichever seat they came from.
+- Codex keeps its login in one file, and its collector probes every time: the
+  account is read again from that file.
+
+The account you are logged in with now is left out of the list (its limits
+are the section above). A window whose reset time has passed reads
+`0% · reset`; a session window not yet opened has no reset time. Deleting the
+file forgets the accounts. The code is in `Seats.js` (tests: `node Seats.test.js`) and `claude-seat.sh`.
 
 ## Install
 

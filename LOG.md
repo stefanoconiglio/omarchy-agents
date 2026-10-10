@@ -141,3 +141,29 @@ widget has seen, not only the one logged in now; compactly.
   accounts on startup.
 - Not checked: the section on screen; it shows only once a second account has been read (the
   next login to another seat).
+
+## 2026-10-10 19:18 CEST — Fix: another seat's limits filed under the account read from ~/.claude.json
+
+Report (user, with a screenshot): the two seats on the gmail address, personal and in the
+Research Group, show the same weekly figure; conflated.
+
+- Cause: the account was read from `~/.claude.json`, the limits come from Omarchy's collector,
+  which probes with the token in `~/.claude/.credentials.json` and reuses its last figures (for
+  a few minutes after a probe, and whenever a probe fails) whichever seat they came from. After a
+  switch the two files can name different seats (every running Claude Code rewrites them). The
+  evidence: the personal seat read Weekly 10%, reset 16 Oct, at 09:31; at 18:56 its entry held
+  99%, reset 12 Oct, the Research Group seat's figure (a weekly reset cannot move earlier).
+- Fix: `claude-seat.sh` (new) asks `api/oauth/profile` with the token itself which account and
+  organization it is (cached per token hash in `~/.cache/omarchy/agents/profiles/`, 0600, last 20
+  kept; the token reaches curl on stdin, never on the command line), and reports the
+  collector's probe time (`claude-limits.json`) and the credentials' mtime. Seats.js
+  `freshProbe`: file only a probe not filed before (`probes` in the ledger) and newer than the
+  credentials. Panel.qml runs it when Claude's limits change; the current seat left out of OTHER
+  ACCOUNTS is the token's. Codex unchanged: one login file, and its collector keeps no limits
+  cache.
+- Tests: `freshProbe`, including the case of the bug (a probe older than the credentials).
+- Ledger: the misfiled personal entry deleted (backup `accounts.json.bak.*` beside it); it comes
+  back at the next login on that seat.
+- Checked: one `omarchy restart shell`, no message from the widget; the current seat filed
+  from its token with `probes.claude` set; the profile lookup cached (second run, no request).
+- Not checked: a real switch between seats.

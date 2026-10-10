@@ -1,8 +1,10 @@
 // The limits of every account the panel has seen, kept after a switch.
 //
 // Each time a provider's limits come in, they are filed under the account
-// logged in at that moment (Account.js), as its session and weekly window:
-// percent used and reset time. The ledger lives in one JSON file, so an
+// they were measured on, as its session and weekly window: percent used and
+// reset time. For Claude Code that account comes from the login token the
+// collector probed with (claude-seat.sh), and only a fresh probe is filed
+// (freshProbe); for Codex, whose login is one file, from Account.js. The ledger lives in one JSON file, so an
 // account logged out of keeps its last reading, and the panel can say when
 // its windows reset.
 //
@@ -30,8 +32,9 @@ function key(providerId, account) {
 }
 
 // The ledger with this reading filed; the same ledger when there is nothing
-// to file (no account, or neither window).
-function record(ledger, providerId, account, windows, nowMs) {
+// to file (no account, or neither window). probeMs, when given, is the time
+// of the probe that measured it, kept so the same probe is never filed twice.
+function record(ledger, providerId, account, windows, nowMs, probeMs) {
   var accounts = (ledger && ledger.accounts) || {}
   if (!account || !account.email) return ledger
   var picked = pickWindows(windows)
@@ -46,7 +49,23 @@ function record(ledger, providerId, account, windows, nowMs) {
     weekly: picked.weekly,
     seenAt: new Date(nowMs).toISOString()
   }
-  return { schemaVersion: 1, accounts: next }
+  var probes = {}
+  var old = (ledger && ledger.probes) || {}
+  for (var p in old) probes[p] = old[p]
+  if (probeMs > 0) probes[providerId] = probeMs
+  return { schemaVersion: 1, accounts: next, probes: probes }
+}
+
+// Whether the collector's last probe (seat from claude-seat.sh) can be filed
+// under seat's account: a probe not filed yet, made after the credentials last
+// changed. The collector reuses its last figures for a few minutes and
+// whenever a probe fails, whichever account they came from; a probe older
+// than the credentials may have measured the seat logged in before.
+function freshProbe(ledger, providerId, seat) {
+  if (!seat || !seat.email) return false
+  var fetched = Number(seat.fetchedAtMs)
+  var filed = Number(((ledger && ledger.probes) || {})[providerId] || 0)
+  return fetched > filed && Number(seat.credentialsMs) <= fetched
 }
 
 // The parsed ledger, or an empty one for a missing or unreadable file.
@@ -117,6 +136,7 @@ if (typeof module !== "undefined") {
   module.exports = {
     pickWindows: pickWindows,
     record: record,
+    freshProbe: freshProbe,
     parse: parse,
     others: others,
     project: project,
