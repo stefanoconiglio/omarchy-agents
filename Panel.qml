@@ -5,6 +5,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Account.js" as Account
+import "Seats.js" as Seats
 
 Panel {
   id: root
@@ -35,6 +36,71 @@ Panel {
     var next = Object.assign({}, accountRecords)
     next[providerId] = record
     accountRecords = next
+    if (seatPending[providerId]) fileSeat(providerId, record)
+  }
+
+  // ---------- other accounts: the limits of every account seen ----------
+  //
+  // New limits for a provider are filed under the account logged in when
+  // they arrive (Seats.js). The account is read again first: it is otherwise
+  // read only when the panel opens, and after a switch the next refresh
+  // already brings the new account's figures. A read that comes from opening
+  // the panel files nothing, since the limits may still be the old account's.
+  readonly property string seatsFile: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/agents/accounts.json"
+  property var seatLedger: Seats.parse("")
+  property bool seatLedgerLoaded: false
+  property var seatPending: ({})
+  property var seatSignatures: ({})
+  readonly property var otherSeats: provider && seatLedgerLoaded
+    ? Seats.others(seatLedger, provider.providerId, accountRecords[provider.providerId] || null) : []
+
+  readonly property string limitsSignature: {
+    var parts = []
+    for (var i = 0; i < providers.length; i++)
+      parts.push(providers[i].providerId + "=" + JSON.stringify(providers[i].limits || []))
+    return parts.join("\n")
+  }
+
+  onLimitsSignatureChanged: {
+    var pending = Object.assign({}, seatPending)
+    var signatures = {}
+    var changed = false
+    for (var i = 0; i < providers.length; i++) {
+      var p = providers[i]
+      var sig = JSON.stringify(p.limits || [])
+      signatures[p.providerId] = sig
+      if ((p.limits || []).length > 0 && seatSignatures[p.providerId] !== sig) {
+        pending[p.providerId] = true
+        changed = true
+      }
+    }
+    seatSignatures = signatures
+    seatPending = pending
+    if (changed) readAccount()
+  }
+
+  function fileSeat(providerId, account) {
+    var pending = Object.assign({}, seatPending)
+    delete pending[providerId]
+    seatPending = pending
+    if (!seatLedgerLoaded) return
+    var p = null
+    for (var i = 0; i < providers.length; i++)
+      if (providers[i].providerId === providerId) p = providers[i]
+    var next = Seats.record(seatLedger, providerId, account, limitWindows(p), Date.now())
+    if (next === seatLedger) return
+    seatLedger = next
+    seatFileView.setText(JSON.stringify(next, null, 2) + "\n")
+  }
+
+  FileView {
+    id: seatFileView
+    path: root.seatsFile
+    watchChanges: false
+    atomicWrites: true
+    printErrors: false
+    onLoaded: { root.seatLedger = Seats.parse(text()); root.seatLedgerLoaded = true }
+    onLoadFailed: root.seatLedgerLoaded = true
   }
 
   function readAccount() {
@@ -833,6 +899,35 @@ Panel {
             }
           }
 
+          // ---------- Other accounts ----------
+          PanelSeparator {
+            visible: seatsSection.visible
+            foreground: root.foreground
+          }
+
+          Column {
+            id: seatsSection
+            visible: root.otherSeats.length > 0
+            width: parent.width
+            spacing: Style.space(10)
+
+            PanelSectionHeader {
+              text: "OTHER ACCOUNTS"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+            }
+
+            Repeater {
+              model: root.otherSeats
+
+              SeatRow {
+                required property var modelData
+                width: seatsSection.width
+                seat: modelData
+              }
+            }
+          }
+
           // ---------- Usage ----------
           PanelSeparator {
             visible: usageSection.visible
@@ -982,6 +1077,67 @@ Panel {
       color: root.dim
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
+    }
+  }
+
+  // Another account, compactly: email and how long ago it was last read, then
+  // its session and weekly use, each with the time to its reset.
+  component SeatRow: Column {
+    id: seatRow
+    property var seat: null
+
+    spacing: Style.space(3)
+
+    Item {
+      width: parent.width
+      implicitHeight: Math.max(seatEmail.implicitHeight, seatAge.implicitHeight)
+
+      Text {
+        id: seatEmail
+        textFormat: Text.PlainText
+        text: seatRow.seat ? Account.lines(seatRow.seat.provider, seatRow.seat).join(" · ") : ""
+        color: root.foreground
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        elide: Text.ElideRight
+        anchors.left: parent.left
+        anchors.right: seatAge.left
+        anchors.rightMargin: Style.spacing.sm
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Text {
+        id: seatAge
+        textFormat: Text.PlainText
+        text: seatRow.seat ? "seen " + Seats.ageText(seatRow.seat.seenAt, root.nowMs) : ""
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+      }
+    }
+
+    Row {
+      width: parent.width
+      spacing: Style.space(14)
+
+      Repeater {
+        model: [
+          { glyph: "Session", window: seatRow.seat ? seatRow.seat.session : null },
+          { glyph: "Weekly", window: seatRow.seat ? seatRow.seat.weekly : null }
+        ]
+
+        Text {
+          required property var modelData
+          readonly property var now: Seats.project(modelData.window, root.nowMs)
+          textFormat: Text.PlainText
+          text: modelData.glyph + " " + Seats.windowText(modelData.window, root.nowMs)
+          color: now && now.percent >= 0.9 ? root.urgent : root.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+        }
+      }
     }
   }
 

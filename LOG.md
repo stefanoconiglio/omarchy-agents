@@ -120,3 +120,24 @@ close to its orange); all outlined widgets in the large type.
 - Here: the two WidgetButtons replaced by bold Text numbers; README.
 - Seen by the user on Retro Fallout (dark theme): fine. Published (user's decision):
   https://github.com/stefanoconiglio/omarchy-agents.
+
+## 2026-10-10 09:32 CEST — Other accounts: the limits of every account seen
+
+Request (user): show the session and weekly use, and when each resets, for every account the
+widget has seen, not only the one logged in now; compactly.
+
+- Seats.js (new, with Seats.test.js): files a provider's Session and Weekly windows (percent,
+  reset time) under the account logged in, keyed by provider, email and organization (the user
+  has two Claude seats on the gmail address, personal and in the university's organization);
+  lists the other accounts, last read first; a window past its reset reads `0% · reset`.
+- Panel.qml: when a provider's limits change (each bar refresh, 5 min), the account is read
+  again and the limits are filed under it; a read from opening the panel files nothing, as the
+  limits may still be the previous account's. The ledger is
+  `~/.local/state/omarchy/agents/accounts.json`. New section OTHER ACCOUNTS under LIMITS: per
+  account, email and organization with "seen <age>", then "Session 42% · 1h 50m   Weekly 63% ·
+  3d 4h", red from 90%.
+- Checked: `node Seats.test.js`, `omarchy plugin validate`; two `omarchy restart shell`; no
+  message from the widget in the journal; the ledger filed the Claude Code (personal) and Codex
+  accounts on startup.
+- Not checked: the section on screen; it shows only once a second account has been read (the
+  next login to another seat).
