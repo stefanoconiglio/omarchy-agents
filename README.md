@@ -54,6 +54,27 @@ file read while it is being rewritten keeps the last value; a missing file
 (logged out) hides the line. The code is in `Account.js`; `Panel.qml` only runs
 it and draws the lines.
 
+### Other accounts
+
+Under the limits, the accounts you were logged in with before, on that tab's
+CLI, each with the session and weekly use last read and the time to each
+reset:
+
+```
+OTHER ACCOUNTS
+you@university.edu · University               seen 3h
+Session 42% · 1h 50m   Weekly 63% · 3d 4h
+```
+
+Every time a provider's limits come in (on every bar refresh, every 5 minutes,
+open panel or not), the panel reads the account again and files the limits
+under it, in `~/.local/state/omarchy/agents/accounts.json`: one entry per
+provider, email and organization, so two seats on one email stay apart. The
+account you are logged in with now is left out of the list (its limits are
+the section above). A window whose reset time has passed reads `0% · reset`;
+a session window not yet opened has no reset time. Deleting the file forgets
+the accounts. The code is in `Seats.js` (tests: `node Seats.test.js`).
+
 ## Install
 
 ```bash
