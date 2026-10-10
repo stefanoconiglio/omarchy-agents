@@ -36,23 +36,31 @@ Panel {
     var next = Object.assign({}, accountRecords)
     next[providerId] = record
     accountRecords = next
-    if (seatPending[providerId]) fileSeat(providerId, record)
+    if (seatPending[providerId]) fileSeat(providerId, record, 0)
   }
 
   // ---------- other accounts: the limits of every account seen ----------
   //
-  // New limits for a provider are filed under the account logged in when
-  // they arrive (Seats.js). The account is read again first: it is otherwise
-  // read only when the panel opens, and after a switch the next refresh
-  // already brings the new account's figures. A read that comes from opening
-  // the panel files nothing, since the limits may still be the old account's.
+  // New limits for a provider are filed under the account they were measured
+  // on (Seats.js). For Claude Code, claude-seat.sh asks Anthropic whose login
+  // token the collector probed with, and only a fresh probe is filed:
+  // ~/.claude.json, which the hero reads, can name another seat for a while
+  // after a switch, and the collector reuses its last figures whichever seat
+  // they came from. For Codex, whose login is one file, the account is read
+  // again from it; a read that comes from opening the panel files nothing.
   readonly property string seatsFile: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/agents/accounts.json"
+  readonly property string claudeSeatScript: decodeURIComponent(Qt.resolvedUrl("claude-seat.sh").toString().replace(/^file:\/\//, ""))
   property var seatLedger: Seats.parse("")
   property bool seatLedgerLoaded: false
   property var seatPending: ({})
   property var seatSignatures: ({})
+  property bool claudeSeatAgain: false
+  // The seat of the token the limits above were measured with.
+  property var claudeSeat: null
   readonly property var otherSeats: provider && seatLedgerLoaded
-    ? Seats.others(seatLedger, provider.providerId, accountRecords[provider.providerId] || null) : []
+    ? Seats.others(seatLedger, provider.providerId,
+        provider.providerId === "claude" && claudeSeat ? claudeSeat : (accountRecords[provider.providerId] || null))
+    : []
 
   readonly property string limitsSignature: {
     var parts = []
@@ -61,36 +69,56 @@ Panel {
     return parts.join("\n")
   }
 
-  onLimitsSignatureChanged: {
+  onLimitsSignatureChanged: checkLimits()
+
+  function checkLimits() {
+    if (!seatLedgerLoaded) return
     var pending = Object.assign({}, seatPending)
     var signatures = {}
-    var changed = false
+    var readCodex = false
     for (var i = 0; i < providers.length; i++) {
       var p = providers[i]
       var sig = JSON.stringify(p.limits || [])
       signatures[p.providerId] = sig
-      if ((p.limits || []).length > 0 && seatSignatures[p.providerId] !== sig) {
-        pending[p.providerId] = true
-        changed = true
-      }
+      if ((p.limits || []).length === 0 || seatSignatures[p.providerId] === sig) continue
+      if (p.providerId === "claude") readClaudeSeat()
+      else { pending[p.providerId] = true; readCodex = true }
     }
     seatSignatures = signatures
     seatPending = pending
-    if (changed) readAccount()
+    if (readCodex) readAccount()
   }
 
-  function fileSeat(providerId, account) {
+  function readClaudeSeat() {
+    if (claudeSeatProc.running) claudeSeatAgain = true
+    else claudeSeatProc.running = true
+  }
+
+  function setClaudeSeat(raw) {
+    var seat = Account.parseRecord(raw)
+    if (!seat || !seat.email) return
+    claudeSeat = seat
+    if (Seats.freshProbe(seatLedger, "claude", seat)) fileSeat("claude", seat, Number(seat.fetchedAtMs))
+  }
+
+  function fileSeat(providerId, account, probeMs) {
     var pending = Object.assign({}, seatPending)
     delete pending[providerId]
     seatPending = pending
-    if (!seatLedgerLoaded) return
     var p = null
     for (var i = 0; i < providers.length; i++)
       if (providers[i].providerId === providerId) p = providers[i]
-    var next = Seats.record(seatLedger, providerId, account, limitWindows(p), Date.now())
+    var next = Seats.record(seatLedger, providerId, account, limitWindows(p), Date.now(), probeMs)
     if (next === seatLedger) return
     seatLedger = next
     seatFileView.setText(JSON.stringify(next, null, 2) + "\n")
+  }
+
+  Process {
+    id: claudeSeatProc
+    command: ["bash", root.claudeSeatScript]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.setClaudeSeat(text) }
+    onExited: if (root.claudeSeatAgain) { root.claudeSeatAgain = false; root.readClaudeSeat() }
   }
 
   FileView {
@@ -99,8 +127,8 @@ Panel {
     watchChanges: false
     atomicWrites: true
     printErrors: false
-    onLoaded: { root.seatLedger = Seats.parse(text()); root.seatLedgerLoaded = true }
-    onLoadFailed: root.seatLedgerLoaded = true
+    onLoaded: { root.seatLedger = Seats.parse(text()); root.seatLedgerLoaded = true; root.checkLimits() }
+    onLoadFailed: { root.seatLedgerLoaded = true; root.checkLimits() }
   }
 
   function readAccount() {

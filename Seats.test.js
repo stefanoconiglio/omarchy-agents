@@ -45,6 +45,22 @@ assert.deepStrictEqual(rest.map(a => a.email), ["B@y.com"])
 rest = S.others(ledger, "claude", null)
 assert.deepStrictEqual(rest.map(a => a.email), ["A@x.it", "B@y.com"])
 
+// Fresh probes only: not filed before, made after the credentials changed.
+const seat = { email: "a@x.it", org: "Uni", fetchedAtMs: 5000, credentialsMs: 4000 }
+assert.strictEqual(S.freshProbe(S.parse(""), "claude", seat), true)
+const filed = S.record(S.parse(""), "claude", seat, windows, now, seat.fetchedAtMs)
+assert.strictEqual(filed.probes.claude, 5000)
+assert.strictEqual(S.freshProbe(filed, "claude", seat), false)
+assert.strictEqual(S.freshProbe(filed, "claude", Object.assign({}, seat, { fetchedAtMs: 6000 })), true)
+assert.strictEqual(S.freshProbe(filed, "codex", seat), true)
+// The bug this guards against: the figures of the seat logged in before
+// (probed at 5000), read after a switch to another seat (credentials 5500).
+assert.strictEqual(S.freshProbe(S.parse(""), "claude",
+  { email: "a@x.it", org: "a@x.it's Organization", fetchedAtMs: 5000, credentialsMs: 5500 }), false)
+assert.strictEqual(S.freshProbe(S.parse(""), "claude", {}), false)
+// Filing without a probe time keeps the probes already recorded.
+assert.strictEqual(S.record(filed, "codex", { email: "c@z" }, windows, now).probes.claude, 5000)
+
 // Texts.
 assert.strictEqual(S.windowText(picked.session, now), "42% · 2h 10m")
 assert.strictEqual(S.windowText(picked.weekly, now), "63% · 3d 4h")
