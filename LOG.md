@@ -167,3 +167,20 @@ Research Group, show the same weekly figure; conflated.
 - Checked: one `omarchy restart shell`, no message from the widget; the current seat filed
   from its token with `probes.claude` set; the profile lookup cached (second run, no request).
 - Not checked: a real switch between seats.
+
+## 2026-10-12 07:18 CEST — Fix: the panel hid most of TOKENS BY DAY and all of TOKENS BY MODEL
+
+Report (user, with a screenshot): the panel shows only Tue, Wed and Thu under TOKENS BY DAY.
+
+- Cause: not the data. `usage/claude.json` held all seven days (6–12 Oct, today included) and
+  seven models. The panel's height was capped at `Style.space(640)`; the OTHER ACCOUNTS section
+  (5dcf18d, three seats at two lines each) pushed the days below the cap, so Fri–Mon and the
+  whole TOKENS BY MODEL section sat in the scrolled-off part (reachable with `j`, but the panel
+  is meant to be read without scrolling).
+- Fix (Panel.qml): no fixed cap; `fittedContentHeight` keeps only the screen's
+  (`availableCardHeight`: screen height minus bar, gap and margin). Estimated from row heights
+  on this 1080 px screen: about 980 px of card against about 1035 px available, so everything
+  shows; each further account seen adds about 45 px, and past the screen the panel scrolls.
+- Checked: one `omarchy restart shell`, no message from the widget in the journal.
+- Not checked: the panel on screen (it opens only from the user's bar); no test, since a QML
+  layout height has no headless test here.

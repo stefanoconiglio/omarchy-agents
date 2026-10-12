@@ -649,9 +649,10 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(380))
-    // Taller than the control panels on purpose: this one is a dashboard, and
-    // the whole point is reading limits and history without scrolling.
-    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(640))
+    // No cap but the screen's, on purpose: this one is a dashboard, and the
+    // whole point is reading limits and history without scrolling. A fixed
+    // cap (640 px) hid the days and models once Other accounts was added.
+    contentHeight: panel.fittedContentHeight(column.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
