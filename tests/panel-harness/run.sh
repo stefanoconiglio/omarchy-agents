@@ -3,9 +3,14 @@
 # Ui and services and no window, and print what the projects view shows.
 #   tests/panel-harness/run.sh                      the live summary
 #   HARNESS_PROJECTS=/nonexistent tests/panel-harness/run.sh   no summary
+# The instance's folder is a temporary one: a plugin folder may hold no
+# symlinks (omarchy plugin validate refuses them).
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 shell="${OMARCHY_PATH:-/usr/share/omarchy}/shell"
-for d in Commons Ui services; do ln -sfn "$shell/$d" "$here/$d"; done
-HARNESS_PANEL="$(cd "$here/../.." && pwd)/Panel.qml" timeout 40 qs -p "$here" 2>&1 |
+dir="$(mktemp -d)"
+trap 'rm -rf "$dir"' EXIT
+cp "$here/shell.qml" "$dir/"
+for d in Commons Ui services; do ln -s "$shell/$d" "$dir/$d"; done
+HARNESS_PANEL="$(cd "$here/../.." && pwd)/Panel.qml" timeout 40 qs -p "$dir" 2>&1 |
     grep -E "HARNESS|Error" | grep -v "host portal" || true
