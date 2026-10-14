@@ -223,3 +223,7 @@ away for the night and left the design to this session.
   the compiled Panel.qml it already had (its IPC functions unchanged, a temporary log line
   in Component.onCompleted never printed; both removed). The new panel shows after the
   next `omarchy restart shell`.
+- Fix (23:19): the first `run.sh` made its Commons, Ui and services symlinks inside
+  `tests/panel-harness/`, and `omarchy plugin validate` refuses a plugin folder holding
+  symlinks (they existed 23:17–23:19 only; the shell logged nothing, the widget stayed
+  enabled). `run.sh` now builds the instance in a temporary folder; validate passes.
