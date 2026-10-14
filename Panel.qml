@@ -6,6 +6,7 @@ import qs.Commons
 import qs.Ui
 import "Account.js" as Account
 import "Seats.js" as Seats
+import "Projects.js" as Projects
 
 Panel {
   id: root
@@ -134,6 +135,52 @@ Panel {
   function readAccount() {
     if (!claudeAccountProc.running) claudeAccountProc.running = true
     if (!codexAccountProc.running) codexAccountProc.running = true
+  }
+
+  // ---------- tokens by project ----------
+  //
+  // noediad, a separate tool, counts each project's tokens day by day from the
+  // same transcripts and writes a summary (README). When it is there, TOKENS
+  // BY MODEL can switch to TOKENS BY PROJECT: the projects this tab's agent
+  // used most in the last 7 days. A row opens that project's days, ALL every
+  // project, in a floating terminal (`noediad show`).
+  readonly property string projectsFile: String(setting("projectsFile", "")) !== ""
+    ? String(setting("projectsFile", ""))
+    : (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/noediad/projects.json"
+  readonly property string noediadCommand: String(setting("noediadCommand", "noediad"))
+  property var projectsSummary: null
+  readonly property bool projectsAvailable: !!provider && Projects.count(projectsSummary, provider.providerId) > 0
+  readonly property var projectRows: provider ? Projects.top(projectsSummary, provider.providerId, 4) : []
+  // The view chosen stays for the shell's session; models when there is no
+  // summary, projects when there are no models.
+  property string tokensViewChoice: "project"
+  readonly property string tokensView: models.length === 0 || (tokensViewChoice === "project" && projectsAvailable)
+    ? "project" : "model"
+  readonly property var tokensViews: {
+    var views = []
+    if (models.length > 0) views.push("model")
+    if (projectsAvailable) views.push("project")
+    return views
+  }
+
+  function toggleTokensView() {
+    if (tokensViews.length > 1) tokensViewChoice = tokensView === "project" ? "model" : "project"
+  }
+
+  function openProjects(path) {
+    Util.execArgv(["omarchy-launch-tui", "--app-id=TUI.float", "env", "LESS=RS",
+                   root.noediadCommand, "show", path || "--all"])
+    root.close()
+  }
+
+  FileView {
+    id: projectsFileView
+    path: root.projectsFile
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.projectsSummary = Projects.parse(text())
+    onLoadFailed: root.projectsSummary = null
   }
 
   // ---------- bar numbers: session and weekly use, left of the icon ----------
@@ -491,6 +538,7 @@ Panel {
     if (panelFlick) panelFlick.contentY = 0
     usage.refreshLimits()
     readAccount()
+    projectsFileView.reload()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -670,7 +718,10 @@ Panel {
       onActivateRequested: root.refreshNow()
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onTextKey: function(t) { if (t === "r" || t === "R") root.refreshNow() }
+      onTextKey: function(t) {
+        if (t === "r" || t === "R") root.refreshNow()
+        else if (t === "p" || t === "P") root.toggleTokensView()
+      }
 
       Flickable {
         id: panelFlick
@@ -996,7 +1047,7 @@ Panel {
             }
           }
 
-          // ---------- Models ----------
+          // ---------- Models / projects ----------
           PanelSeparator {
             visible: modelSection.visible
             foreground: root.foreground
@@ -1004,19 +1055,97 @@ Panel {
 
           Column {
             id: modelSection
-            visible: root.models.length > 0
+            visible: root.tokensViews.length > 0
             width: parent.width
             spacing: Style.spacing.md
 
-            PanelSectionHeader {
+            // TOKENS BY MODEL · PROJECT: the view shown in full, the other one
+            // faint; a click (or p) switches. By project, ALL opens every one.
+            Item {
               width: parent.width
-              text: "TOKENS BY MODEL"
-              foreground: root.foreground
-              fontFamily: root.fontFamily
+              implicitHeight: tokensBy.implicitHeight
+
+              Row {
+                id: tokensBy
+                spacing: Style.space(6)
+
+                PanelSectionHeader {
+                  text: "TOKENS BY"
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                }
+
+                Repeater {
+                  model: root.tokensViews
+
+                  PanelSectionHeader {
+                    required property string modelData
+                    text: modelData.toUpperCase()
+                    foreground: root.foreground
+                    fontFamily: root.fontFamily
+                    opacity: modelData === root.tokensView ? 1 : 0.45
+                    font.underline: viewHover.containsMouse && modelData !== root.tokensView
+
+                    MouseArea {
+                      id: viewHover
+                      anchors.fill: parent
+                      hoverEnabled: true
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: root.tokensViewChoice = parent.modelData
+                    }
+                  }
+                }
+              }
+
+              PanelSectionHeader {
+                id: allProjects
+                visible: root.tokensView === "project"
+                anchors.right: parent.right
+                anchors.verticalCenter: tokensBy.verticalCenter
+                text: "7 DAYS · ALL " + (root.projectsSummary ? root.projectsSummary.projects.length : 0) + " ›"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                font.underline: allHover.containsMouse
+
+                MouseArea {
+                  id: allHover
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.openProjects("")
+                }
+
+                PanelToolTip {
+                  visible: allHover.containsMouse
+                  text: "Every project, every agent, in a terminal\nAs of "
+                    + Projects.stampText(root.projectsSummary, root.todayDate())
+                  fontFamily: root.fontFamily
+                }
+              }
             }
 
             Repeater {
-              model: root.models
+              model: root.tokensView === "project" ? root.projectRows : []
+
+              ProjectRow {
+                required property var modelData
+                width: modelSection.width
+                row: modelData
+              }
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              visible: root.tokensView === "project" && root.projectRows.length === 0
+              width: parent.width
+              text: "No project in the last 7 days"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+
+            Repeater {
+              model: root.tokensView === "model" ? root.models : []
 
               ModelRow {
                 required property var modelData
@@ -1273,6 +1402,79 @@ Panel {
     PanelToolTip {
       visible: dayHover.containsMouse
       text: root.dayTooltip(dayRow.day, dayRow.today)
+      fontFamily: root.fontFamily
+    }
+  }
+
+  // A project, as a model row is drawn: its name (shortened in the middle,
+  // where long paths repeat), its tokens in the last 7 days, and its share of
+  // the busiest project behind them. A click opens its days.
+  component ProjectRow: Item {
+    id: projectRow
+    property var row: null
+
+    implicitHeight: projectName.implicitHeight + Style.spacing.lg
+
+    Rectangle {
+      anchors.fill: parent
+      radius: Style.cornerRadius
+      color: root.alpha(root.foreground, projectHover.containsMouse ? 0.09 : 0.05)
+    }
+
+    Rectangle {
+      anchors.left: parent.left
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      width: parent.width * root.clamp(projectRow.row ? projectRow.row.share : 0, 0, 1)
+      radius: Style.cornerRadius
+      color: root.alpha(root.foreground, 0.14)
+
+      Behavior on width {
+        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+      }
+    }
+
+    Text {
+      id: projectName
+      textFormat: Text.PlainText
+      text: projectRow.row ? projectRow.row.name : ""
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      elide: Text.ElideMiddle
+      anchors.left: parent.left
+      anchors.leftMargin: Style.space(8)
+      anchors.right: projectTokens.left
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    Text {
+      id: projectTokens
+      textFormat: Text.PlainText
+      text: projectRow.row ? usage.formatTokenCount(projectRow.row.week) : ""
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      font.bold: true
+      anchors.right: parent.right
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    MouseArea {
+      id: projectHover
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: if (projectRow.row) root.openProjects(projectRow.row.path)
+    }
+
+    PanelToolTip {
+      visible: projectHover.containsMouse
+      text: root.projectsSummary
+        ? Projects.rowTooltip(projectRow.row, root.projectsSummary, root.todayDate(), usage.formatTokenCount)
+        : ""
       fontFamily: root.fontFamily
     }
   }
