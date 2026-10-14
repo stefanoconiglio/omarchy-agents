@@ -184,3 +184,40 @@ Report (user, with a screenshot): the panel shows only Tue, Wed and Thu under TO
 - Checked: one `omarchy restart shell`, no message from the widget in the journal.
 - Not checked: the panel on screen (it opens only from the user's bar); no test, since a QML
   layout height has no headless test here.
+
+## 2026-10-14 23:12 CEST — Tokens by project
+
+Request (user): the token use per project, which noediad (his tool, not published) now
+counts, in this widget: the top projects, and a click that opens the rest. The user was
+away for the night and left the design to this session.
+
+- Design (this session's choice): TOKENS BY MODEL can switch to TOKENS BY PROJECT, in
+  place, rather than a new section: the panel already fills about 980 of the 1035 px it has
+  on a 1080 px screen (12 Oct), and a section of its own would push the days off it again.
+  Four rows, as the models have, so the height stays. Per tab (the agent of the tab), last
+  7 days (the span of TOKENS BY DAY), each row's bar scaled to the first. Header: TOKENS BY
+  MODEL PROJECT, the shown view in full, the other faint, click or `p` to switch; projects
+  first when the summary exists; models alone without it. On the right, 7 DAYS · ALL n ›,
+  n the number of projects in the summary, which is what ALL opens.
+- Clicks: a row runs `noediad show <path>` (its days), ALL `noediad show --all`, in a
+  floating terminal (`omarchy-launch-tui --app-id=TUI.float env LESS=RS …`; `LESS=RS` so
+  that `less` stays open when the text fits; `q` closes the window).
+- Data: noediad's summary, `~/.local/state/noediad/projects.json` (setting
+  `projectsFile`), watched by a FileView and read again when the panel opens. Not in
+  `~/.local/state/omarchy/agents/usage/`: Main.qml takes every JSON file there for an
+  agent's record and would grow a tab. Command: setting `noediadCommand` (`noediad`).
+  `Projects.js` (parse, per-agent figures, top n, count, stamp, tooltip), with
+  `Projects.test.js`.
+- Checked: `node Projects.test.js`, `node Seats.test.js`, `omarchy plugin validate`. The
+  panel loaded from this folder in a separate Quickshell instance with Omarchy's Commons
+  and Ui and no window (a test shell in the session's scratchpad): no QML error; Claude's
+  tab gives the four busiest projects of the week with shares 1.00, 0.84, 0.38, 0.21 and
+  132 for ALL; `p` switches to the models and back; Codex's tab its one project of the
+  week; with no summary file, MODEL alone and the model view. The command behind ALL, in a
+  private tmux server: the table, paged, closed by `q`.
+- Not checked: the panel on screen, the tooltips, the hover underline and a click. The
+  session locked at 23:03; `omarchy restart shell` refuses while it is locked, and the
+  running shell's plugin reload (`omarchy-shell shell rescanPlugins`) rebuilt the bar from
+  the compiled Panel.qml it already had (its IPC functions unchanged, a temporary log line
+  in Component.onCompleted never printed; both removed). The new panel shows after the
+  next `omarchy restart shell`.

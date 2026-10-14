@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "Stefano Coniglio, from Omarchy's Agents widget",
   "license": "MIT",
-  "description": "Omarchy's Agents widget, with the session and weekly use in the bar and the account each CLI is logged in with in the panel (for Claude Code, the seat's organization too).",
+  "description": "Omarchy's Agents widget, with the session and weekly use in the bar, the account each CLI is logged in with in the panel (for Claude Code, the seat's organization too), and the tokens by project when noediad counts them.",
   "kinds": [
     "bar-widget"
   ],
@@ -38,7 +38,9 @@
       "syncMode": "Off",
       "syncDir": "",
       "syncFileName": "",
-      "syncDeviceId": ""
+      "syncDeviceId": "",
+      "projectsFile": "",
+      "noediadCommand": "noediad"
     },
     "schema": [
       {
@@ -81,6 +83,20 @@
         "label": "Device id",
         "defaultValue": "",
         "description": "Optional stable device name used inside synced aggregate snapshots."
+      },
+      {
+        "key": "projectsFile",
+        "type": "path",
+        "label": "Projects summary",
+        "defaultValue": "",
+        "description": "noediad's summary of the tokens per project. Empty: ~/.local/state/noediad/projects.json. Without it, TOKENS BY PROJECT does not show."
+      },
+      {
+        "key": "noediadCommand",
+        "type": "string",
+        "label": "noediad command",
+        "defaultValue": "noediad",
+        "description": "Run as `<command> show --all` or `show <project>` when a project or ALL is clicked."
       }
     ]
   },

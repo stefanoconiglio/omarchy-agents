@@ -1,8 +1,8 @@
 # Agents, with the account and the limits
 
-Omarchy's Agents widget with two additions: the session and weekly use in the
-bar, and under the plan in the panel's hero, the account each CLI is logged in
-with.
+Omarchy's Agents widget with three additions: the session and weekly use in
+the bar; under the plan in the panel's hero, the account each CLI is logged in
+with; and, when noediad counts them, the tokens by project.
 
 ## In the bar
 
@@ -86,6 +86,47 @@ The account you are logged in with now is left out of the list (its limits
 are the section above). A window whose reset time has passed reads
 `0% · reset`; a session window not yet opened has no reset time. Deleting the
 file forgets the accounts. The code is in `Seats.js` (tests: `node Seats.test.js`) and `claude-seat.sh`.
+
+### Tokens by project
+
+When noediad (a separate tool, not published, that counts each project's
+tokens day by day from the same transcripts) has written its summary, TOKENS
+BY MODEL can switch to TOKENS BY PROJECT:
+
+```
+TOKENS BY MODEL PROJECT                  7 DAYS · ALL 42 ›
+alpha                                               1.2B
+beta                                              640.0M
+Drive:…/lectures                                   85.3M
+gamma                                              12.1M
+```
+
+- The four projects this tab's agent used most in the last 7 days, most
+  first, each with a bar scaled to the first, as the model rows are. Hover a
+  row for its path and its tokens today, in the last 7 and 30 days and in
+  all, and the time of the count.
+- Click MODEL or PROJECT in the header, or press `p`, to switch; the choice
+  holds until the shell restarts. Projects come first when the summary is
+  there; without it the section is Omarchy's TOKENS BY MODEL, unchanged. Same
+  number of rows as the models, so the panel keeps its height.
+- A click on a project opens its days, on ALL every project of every agent,
+  in a floating terminal: `noediad show <project>` and `noediad show --all`,
+  paged by `less` (`q` closes it).
+
+The summary is `~/.local/state/noediad/projects.json` (setting
+`projectsFile`), watched by the panel; the command is `noediad` (setting
+`noediadCommand`). Anything that writes the summary in this form works:
+
+```json
+{"updated": "2026-10-14 23:00", "today": "2026-10-14",
+ "projects": [{"path": "~/repos/alpha", "name": "alpha",
+               "agents": {"claude": {"today": 0, "week": 0, "month": 0, "all": 0},
+                          "codex": {"today": 0, "week": 0, "month": 0, "all": 0}}}]}
+```
+
+`week` is the last 7 days, `month` the last 30, `all` everything counted;
+agents are named as the panel's tabs (`claude`, `codex`). The code is in
+`Projects.js` (tests: `node Projects.test.js`); `Panel.qml` draws it.
 
 ## Install
 
