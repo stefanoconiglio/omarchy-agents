@@ -210,11 +210,13 @@ away for the night and left the design to this session.
   `Projects.test.js`.
 - Checked: `node Projects.test.js`, `node Seats.test.js`, `omarchy plugin validate`. The
   panel loaded from this folder in a separate Quickshell instance with Omarchy's Commons
-  and Ui and no window (a test shell in the session's scratchpad): no QML error; Claude's
+  and Ui and no window (`tests/panel-harness/run.sh`): no QML error; Claude's
   tab gives the four busiest projects of the week with shares 1.00, 0.84, 0.38, 0.21 and
   132 for ALL; `p` switches to the models and back; Codex's tab its one project of the
   week; with no summary file, MODEL alone and the model view. The command behind ALL, in a
-  private tmux server: the table, paged, closed by `q`.
+  private tmux server: the table, paged, closed by `q`. `xdg-terminal-exec --print-cmd`
+  with a Drive path: the path with its spaces stays one argument to foot, and noediad
+  takes the `~` form the summary gives.
 - Not checked: the panel on screen, the tooltips, the hover underline and a click. The
   session locked at 23:03; `omarchy restart shell` refuses while it is locked, and the
   running shell's plugin reload (`omarchy-shell shell rescanPlugins`) rebuilt the bar from

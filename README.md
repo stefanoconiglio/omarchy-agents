@@ -127,6 +127,9 @@ The summary is `~/.local/state/noediad/projects.json` (setting
 `week` is the last 7 days, `month` the last 30, `all` everything counted;
 agents are named as the panel's tabs (`claude`, `codex`). The code is in
 `Projects.js` (tests: `node Projects.test.js`); `Panel.qml` draws it.
+`tests/panel-harness/run.sh` loads `Panel.qml` in a Quickshell instance of its
+own, with no window, and prints what the projects view shows on each tab and
+after `p` (with `HARNESS_PROJECTS=/nonexistent`, the fallback to the models).
 
 ## Install
 
