@@ -227,3 +227,14 @@ away for the night and left the design to this session.
   `tests/panel-harness/`, and `omarchy plugin validate` refuses a plugin folder holding
   symlinks (they existed 23:17–23:19 only; the shell logged nothing, the widget stayed
   enabled). `run.sh` now builds the instance in a temporary folder; validate passes.
+
+## 2026-10-17, 00:24 CEST: Tokens by project read from gwath tokens
+
+- The token counter that was noediad is now part of gwath (`gwath tokens`), and
+  its old name is gone. The panel reads its summary at `~/.local/state/gwath/tokens.json`
+  (setting `projectsFile`) and opens `gwath tokens show <project>` / `--all` (setting
+  `tokensCommand`, default `gwath tokens`, its words split at spaces; it was
+  `noediadCommand`, one word). README, manifest, Projects.js's comment.
+- Checked: `node Projects.test.js`, `node Seats.test.js`, `omarchy plugin validate`,
+  `tests/panel-harness/run.sh` (the panel loads, its rows from the summary). The panel
+  in the running shell takes it after `omarchy restart shell`.

@@ -1,7 +1,8 @@
-// The projects behind the tokens, from noediad's summary
-// (~/.local/state/noediad/projects.json; noediad counts each project's tokens
-// day by day from the same transcripts the collectors read). The panel shows
-// the projects one agent used most in the last 7 days; a click opens them all.
+// The projects behind the tokens, from the summary of gwath's token counter
+// (~/.local/state/gwath/tokens.json; `gwath tokens` counts each project's
+// tokens day by day from the same transcripts the collectors read). The panel
+// shows the projects one agent used most in the last 7 days; a click opens
+// them all.
 //
 // Plain functions, so the file runs under node too (Projects.test.js).
 
