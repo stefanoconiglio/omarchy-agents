@@ -139,15 +139,16 @@ Panel {
 
   // ---------- tokens by project ----------
   //
-  // noediad, a separate tool, counts each project's tokens day by day from the
-  // same transcripts and writes a summary (README). When it is there, TOKENS
-  // BY MODEL can switch to TOKENS BY PROJECT: the projects this tab's agent
-  // used most in the last 7 days. A row opens that project's days, ALL every
-  // project, in a floating terminal (`noediad show`).
+  // gwath's token counter (`gwath tokens`) counts each project's tokens day by
+  // day from the same transcripts and writes a summary (README). When it is
+  // there, TOKENS BY MODEL can switch to TOKENS BY PROJECT: the projects this
+  // tab's agent used most in the last 7 days. A row opens that project's days,
+  // ALL every project, in a floating terminal (`gwath tokens show`).
   readonly property string projectsFile: String(setting("projectsFile", "")) !== ""
     ? String(setting("projectsFile", ""))
-    : (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/noediad/projects.json"
-  readonly property string noediadCommand: String(setting("noediadCommand", "noediad"))
+    : (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/gwath/tokens.json"
+  // The command that shows the projects, as words (`gwath tokens`).
+  readonly property var tokensCommand: String(setting("tokensCommand", "gwath tokens")).trim().split(/\s+/)
   property var projectsSummary: null
   readonly property bool projectsAvailable: !!provider && Projects.count(projectsSummary, provider.providerId) > 0
   readonly property var projectRows: provider ? Projects.top(projectsSummary, provider.providerId, 4) : []
@@ -168,8 +169,8 @@ Panel {
   }
 
   function openProjects(path) {
-    Util.execArgv(["omarchy-launch-tui", "--app-id=TUI.float", "env", "LESS=RS",
-                   root.noediadCommand, "show", path || "--all"])
+    Util.execArgv(["omarchy-launch-tui", "--app-id=TUI.float", "env", "LESS=RS"]
+                    .concat(root.tokensCommand, ["show", path || "--all"]))
     root.close()
   }
 

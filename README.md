@@ -2,7 +2,7 @@
 
 Omarchy's Agents widget with three additions: the session and weekly use in
 the bar; under the plan in the panel's hero, the account each CLI is logged in
-with; and, when noediad counts them, the tokens by project.
+with; and, when gwath's token counter counts them, the tokens by project.
 
 ## In the bar
 
@@ -89,9 +89,9 @@ file forgets the accounts. The code is in `Seats.js` (tests: `node Seats.test.js
 
 ### Tokens by project
 
-When noediad (a separate tool, not published, that counts each project's
-tokens day by day from the same transcripts) has written its summary, TOKENS
-BY MODEL can switch to TOKENS BY PROJECT:
+When gwath's token counter (`gwath tokens`, in gwath, not published, which
+counts each project's tokens day by day from the same transcripts) has
+written its summary, TOKENS BY MODEL can switch to TOKENS BY PROJECT:
 
 ```
 TOKENS BY MODEL PROJECT                  7 DAYS · ALL 42 ›
@@ -110,12 +110,13 @@ gamma                                              12.1M
   there; without it the section is Omarchy's TOKENS BY MODEL, unchanged. Same
   number of rows as the models, so the panel keeps its height.
 - A click on a project opens its days, on ALL every project of every agent,
-  in a floating terminal: `noediad show <project>` and `noediad show --all`,
+  in a floating terminal: `gwath tokens show <project>` and `gwath tokens show --all`,
   paged by `less` (`q` closes it).
 
-The summary is `~/.local/state/noediad/projects.json` (setting
-`projectsFile`), watched by the panel; the command is `noediad` (setting
-`noediadCommand`). Anything that writes the summary in this form works:
+The summary is `~/.local/state/gwath/tokens.json` (setting
+`projectsFile`), watched by the panel; the command is `gwath tokens` (setting
+`tokensCommand`, its words split at spaces; `show` and the project follow).
+Anything that writes the summary in this form works:
 
 ```json
 {"updated": "2026-10-14 23:00", "today": "2026-10-14",
