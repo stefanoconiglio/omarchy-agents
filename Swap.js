@@ -57,6 +57,7 @@ function parse(text) {
       disabled: a.disabled === true,
       status: String(a.usageStatus || ""),
       stale: !a.usage,
+      usageError: String(a.usageError || ""),
       ageSeconds: Number(age) >= 0 ? Number(age) : -1,
       session: usage ? windowOf(usage.fiveHour) : null,
       weekly: usage ? windowOf(usage.sevenDay) : null
@@ -87,6 +88,7 @@ function note(seat) {
   if (seat.active) return "active"
   if (seat.disabled) return "held out"
   if (seat.status && seat.status !== "ok" && seat.status !== "unavailable") return seat.status.replace(/_/g, " ")
+  if (seat.stale && !seat.session && !seat.weekly && seat.usageError) return seat.usageError
   if (seat.stale) return "old reading"
   return ""
 }

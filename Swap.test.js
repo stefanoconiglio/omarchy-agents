@@ -68,6 +68,9 @@ assert.strictEqual(S.note(bob), "held out")
 assert.strictEqual(S.note(Object.assign({}, bob, { disabled: false })), "token expired")
 assert.strictEqual(S.note(Object.assign({}, bob, { disabled: false, status: "unavailable" })), "old reading")
 assert.strictEqual(S.note(lab), "")
+// No reading at all: the failure cswap names.
+const unread = S.parse('{"accounts":[{"number":5,"email":"c@example.net","usageStatus":"unavailable","usage":null,"usageError":"http-429"}]}').seats[0]
+assert.strictEqual(S.note(unread), "http-429")
 assert.strictEqual(S.windowText(lab.session, now), "42% · 2h 10m")
 assert.strictEqual(S.windowText(lab.weekly, now), "63% · 3d 4h")
 assert.strictEqual(S.windowText(lab.session, Date.parse("2026-10-10T15:00:00Z")), "0% · reset")

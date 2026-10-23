@@ -79,6 +79,8 @@ Panel {
     swapMessageError = !result.ok
     readSeats()
     readAccount()
+    // The limits above were the old seat's.
+    if (result.switched) usage.refreshLimits()
   }
 
   function openSwap() {

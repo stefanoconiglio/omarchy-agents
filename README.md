@@ -89,7 +89,8 @@ Session 0%   Weekly 12% · 5d 20h
 - Without cswap, or when it fails, the section is not shown, and the hero
   shows the account logged in alone. The Codex tab has no such list.
 - `cswapCommand` (default `cswap`) is the command run; its words split at
-  spaces (`uvx claude-swap`, say).
+  spaces. AUTO is found by the command's first word, so a command run
+  through another program reads AUTO OFF.
 
 The code is in `Swap.js` (tests: `node Swap.test.js`); `Panel.qml` runs the
 commands and draws the rows. `tests/panel-harness/run.sh --cswap` drives the
