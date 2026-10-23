@@ -25,11 +25,30 @@ function autoArgv(words) {
   return ["pgrep", "-f", "(^|/)" + name + " auto( |$)"]
 }
 
-// One window: percent used as a fraction, as Omarchy's limits are, and its
-// reset time (empty when the window has not opened yet).
-function windowOf(w) {
+// One window: its label, percent used as a fraction, as Omarchy's limits
+// are, its reset time (empty when the window has not opened yet), its reset
+// as cswap writes it on the clock ("22:39", "Oct 26 06:00") and whether the
+// week is being used ahead of pace.
+function windowOf(label, w) {
   if (!w || !(Number(w.pct) >= 0)) return null
-  return { percent: Number(w.pct) / 100, resetAt: String(w.resetsAt || "") }
+  return {
+    label: String(label),
+    percent: Number(w.pct) / 100,
+    resetAt: String(w.resetsAt || ""),
+    clock: String(w.clock || ""),
+    ahead: w.aheadOfPace === true
+  }
+}
+
+// A seat's windows as cswap's watch page lists them: 5h, 7d, then each
+// model's weekly window under its model's name.
+function windowsOf(usage) {
+  if (!usage) return []
+  var list = [windowOf("5h", usage.fiveHour), windowOf("7d", usage.sevenDay)]
+  var scoped = Array.isArray(usage.scoped) ? usage.scoped : []
+  for (var i = 0; i < scoped.length; i++)
+    if (scoped[i] && scoped[i].name) list.push(windowOf(scoped[i].name, scoped[i]))
+  return list.filter(function(w) { return w !== null })
 }
 
 // The parsed list: {ok, error, active, seats}. ok is false when the output is
@@ -59,8 +78,7 @@ function parse(text) {
       stale: !a.usage,
       usageError: String(a.usageError || ""),
       ageSeconds: Number(age) >= 0 ? Number(age) : -1,
-      session: usage ? windowOf(usage.fiveHour) : null,
-      weekly: usage ? windowOf(usage.sevenDay) : null
+      windows: windowsOf(usage)
     })
   }
   seats.sort(function(x, y) { return x.number - y.number })
@@ -88,7 +106,7 @@ function note(seat) {
   if (seat.active) return "active"
   if (seat.disabled) return "held out"
   if (seat.status && seat.status !== "ok" && seat.status !== "unavailable") return seat.status.replace(/_/g, " ")
-  if (seat.stale && !seat.session && !seat.weekly && seat.usageError) return seat.usageError
+  if (seat.stale && seat.windows.length === 0 && seat.usageError) return seat.usageError
   if (seat.stale) return "old reading"
   return ""
 }
@@ -111,16 +129,32 @@ function duration(ms) {
   return Math.max(1, minutes) + "m"
 }
 
-// "42% · 2h 10m" (used, and time to the reset), "0% · reset" once it has
-// reset, "12%" with no reset time known (a session window not yet opened),
-// "—" with no reading.
-function windowText(w, nowMs) {
+// "42%", "0%" once the window has reset, "—" with no reading.
+function percentText(w, nowMs) {
   var p = project(w, nowMs)
   if (!p) return "—"
-  var text = Math.round(Math.max(0, p.percent) * 100) + "%"
-  if (p.reset) return text + " · reset"
-  if (p.resetMs > 0) return text + " · " + duration(p.resetMs)
-  return text
+  return Math.round(Math.max(0, p.percent) * 100) + "%"
+}
+
+// The time to the reset ("2h 10m", "3d 4h"), "reset" once it has passed,
+// "" with no reset time known (a session window not yet opened).
+function resetText(w, nowMs) {
+  var p = project(w, nowMs)
+  if (!p) return ""
+  if (p.reset) return "reset"
+  return p.resetMs > 0 ? duration(p.resetMs) : ""
+}
+
+// The hover line of a window: "7d 81% · resets 2d 12h · Oct 26 06:00 ·
+// ahead of pace".
+function windowDetail(w, nowMs) {
+  if (!w) return ""
+  var parts = [w.label + " " + percentText(w, nowMs)]
+  var reset = resetText(w, nowMs)
+  if (reset === "reset") parts.push("reset")
+  else if (reset !== "") parts.push("resets " + reset + (w.clock ? " · " + w.clock : ""))
+  if (w.ahead) parts.push("ahead of pace")
+  return parts.join(" · ")
 }
 
 if (typeof module !== "undefined") {
@@ -135,6 +169,8 @@ if (typeof module !== "undefined") {
     badge: badge,
     note: note,
     project: project,
-    windowText: windowText
+    percentText: percentText,
+    resetText: resetText,
+    windowDetail: windowDetail
   }
 }

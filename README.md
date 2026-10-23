@@ -59,21 +59,30 @@ it and draws the lines.
 ### Accounts (claude-swap)
 
 With [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`) on the
-machine, the Claude Code tab lists, under the limits, every seat it manages,
-numbered as `cswap list` numbers them, each with its session and weekly use
-and the time to each reset:
+machine, the Claude Code tab lists every seat it manages, numbered as
+`cswap list` numbers them:
 
 ```
 ACCOUNTS · AUTO ON                                 CSWAP ›
-#1 lab  you@university.edu · University
-Session 42% · 1h 50m   Weekly 63% · 3d 4h
-#2  you@gmail.com · Personal account                active
-Session 0%   Weekly 12% · 5d 20h
+#1 lab  you@university.edu                        ● active
+University
+5h     ━━━━━━━━──────────────────────    27%     4h 17m
+7d     ━━━━━━━━━━━━━━━━━━━━━━━━━─────    81%     2d 12h
+Fable  ──────────────────────────────     0%     2d 12h
+#2  you@gmail.com
+Personal account
+5h     ──────────────────────────────     0%
+7d     ━━━━━━━━━━━━━━━━━─────────────    57%     4d 15h
 ```
 
 - The list is `cswap list --json`, read when the shell starts, when the panel
   opens and after a switch. cswap keeps the readings (it asks Anthropic for
   each seat's use and caches the answers); the panel keeps nothing.
+- Each seat shows its windows as `cswap watch` does: 5h, 7d and each
+  model's week (Fable, say), a meter, the share used and the time to the
+  reset; hover for the reset on the clock and whether the week runs ahead
+  of pace. On the Claude tab this replaces LIMITS, which shows only without
+  cswap (and on the other tabs).
 - **A click on a seat** runs `cswap switch <n> --json`: every running Claude
   Code moves to that seat, as with `cswap switch` in a terminal. cswap's
   message shows under the list, in red when it refused. The active seat is
@@ -85,7 +94,7 @@ Session 0%   Weekly 12% · 5d 20h
 - On the right of a seat: `active`, `held out` (`cswap disable`), the reason
   its use can't be read (`token expired`), or `old reading` when cswap shows
   the last reading it had. A window whose reset time has passed reads
-  `0% · reset`; a session window not yet opened has no reset time.
+  0% and `reset`; a session window not yet opened has no reset time.
 - Without cswap, or when it fails, the section is not shown, and the hero
   shows the account logged in alone. The Codex tab has no such list.
 - `cswapCommand` (default `cswap`) is the command run; its words split at

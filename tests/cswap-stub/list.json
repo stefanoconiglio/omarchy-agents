@@ -7,8 +7,12 @@
       "organizationUuid": "00000000-0000-4000-8000-000000000001", "isOrganization": true,
       "active": false, "usageStatus": "ok", "alias": "lab",
       "usage": {
-        "fiveHour": { "pct": 42.0, "resetsAt": "2026-10-10T14:10:00+00:00" },
-        "sevenDay": { "pct": 63.0, "resetsAt": "2026-10-13T16:00:00+00:00", "expectedPct": 50.0, "aheadOfPace": true }
+        "fiveHour": { "pct": 42.0, "resetsAt": "2026-10-10T14:10:00+00:00", "countdown": "2h 10m", "clock": "16:10" },
+        "sevenDay": { "pct": 63.0, "resetsAt": "2026-10-13T16:00:00+00:00", "countdown": "3d 4h", "clock": "Oct 13 18:00", "expectedPct": 50.0, "aheadOfPace": true },
+        "scoped": [
+          { "pct": 5.0, "resetsAt": "2026-10-13T16:00:00+00:00", "clock": "Oct 13 18:00", "name": "Fable" },
+          { "pct": 1.0, "resetsAt": "2026-10-13T16:00:00+00:00" }
+        ]
       },
       "usageFetchedAt": "2026-10-10T11:58:00Z", "usageAgeSeconds": 120.0
     },

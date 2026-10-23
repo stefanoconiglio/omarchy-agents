@@ -937,7 +937,8 @@ Panel {
 
           Column {
             id: limitsSection
-            visible: root.limits.length > 0
+            // On the Claude tab, ACCOUNTS shows the same windows, every seat's.
+            visible: root.limits.length > 0 && root.swapSeats.length === 0
             width: parent.width
             spacing: Style.space(10)
 
@@ -1258,14 +1259,15 @@ Panel {
     }
   }
 
-  // A seat, compactly: its number and alias as cswap counts them, the email
-  // (and the organization, for a seat in someone's), then its session and
-  // weekly use, each with the time to its reset. A click on a seat other than
-  // the active one switches to it.
+  // A seat as cswap's watch page draws it: its number (and alias) and email,
+  // the organization under them, then a meter per window (5h, 7d and each
+  // model's week) with the share used and the time to the reset. The active
+  // seat is picked out; a click on another one switches to it.
   component SeatRow: Item {
     id: seatRow
     property var seat: null
     readonly property bool switchable: !!seat && !seat.active && root.switchingTo === 0
+    readonly property var lines: seat ? Account.lines("claude", seat) : []
 
     implicitHeight: seatColumn.implicitHeight + Style.spacing.lg
 
@@ -1273,7 +1275,7 @@ Panel {
       anchors.fill: parent
       radius: Style.cornerRadius
       color: root.alpha(root.foreground,
-        seatRow.seat && seatRow.seat.active ? 0.12 : (seatHover.containsMouse && seatRow.switchable ? 0.09 : 0.05))
+        seatRow.seat && seatRow.seat.active ? 0.1 : (seatHover.containsMouse && seatRow.switchable ? 0.07 : 0))
     }
 
     Column {
@@ -1283,7 +1285,7 @@ Panel {
       anchors.leftMargin: Style.space(8)
       anchors.rightMargin: Style.space(8)
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.space(3)
+      spacing: Style.space(4)
 
       Item {
         width: parent.width
@@ -1292,9 +1294,7 @@ Panel {
         Text {
           id: seatEmail
           textFormat: Text.PlainText
-          text: seatRow.seat
-            ? Swap.badge(seatRow.seat) + "  " + Account.lines("claude", seatRow.seat).join(" · ")
-            : ""
+          text: seatRow.seat ? Swap.badge(seatRow.seat) + "  " + (seatRow.lines[0] || "") : ""
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -1311,36 +1311,46 @@ Panel {
           textFormat: Text.PlainText
           text: !seatRow.seat ? ""
             : root.switchingTo === seatRow.seat.number ? "switching…"
+            : seatRow.seat.active ? "● active"
             : seatHover.containsMouse && seatRow.switchable ? "switch ›"
             : Swap.note(seatRow.seat)
-          color: root.dim
+          color: seatRow.seat && seatRow.seat.active ? root.foreground : root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
+          font.bold: !!seatRow.seat && seatRow.seat.active
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
         }
       }
 
-      Row {
+      Text {
+        visible: seatRow.lines.length > 1
         width: parent.width
-        spacing: Style.space(14)
+        textFormat: Text.PlainText
+        text: seatRow.lines.length > 1 ? seatRow.lines[1] : ""
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        elide: Text.ElideRight
+      }
 
-        Repeater {
-          model: [
-            { glyph: "Session", window: seatRow.seat ? seatRow.seat.session : null },
-            { glyph: "Weekly", window: seatRow.seat ? seatRow.seat.weekly : null }
-          ]
+      Repeater {
+        model: seatRow.seat ? seatRow.seat.windows : []
 
-          Text {
-            required property var modelData
-            readonly property var now: Swap.project(modelData.window, root.nowMs)
-            textFormat: Text.PlainText
-            text: modelData.glyph + " " + Swap.windowText(modelData.window, root.nowMs)
-            color: now && now.percent >= 0.9 ? root.urgent : root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-          }
+        SeatWindow {
+          required property var modelData
+          width: seatColumn.width
+          window: modelData
         }
+      }
+
+      Text {
+        visible: !!seatRow.seat && seatRow.seat.windows.length === 0
+        textFormat: Text.PlainText
+        text: "no reading"
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
       }
     }
 
@@ -1355,9 +1365,72 @@ Panel {
     PanelToolTip {
       visible: seatHover.containsMouse && !!seatRow.seat
       text: !seatRow.seat ? ""
-        : seatRow.seat.active ? "The seat Claude Code uses now"
-        : "Switch every Claude Code to this seat (cswap switch " + seatRow.seat.number + ")"
+        : seatRow.seat.windows.map(function(w) { return Swap.windowDetail(w, root.nowMs) })
+            .concat([seatRow.seat.active ? "The seat Claude Code uses now"
+              : "Click: switch every Claude Code to this seat (cswap switch " + seatRow.seat.number + ")"])
+            .join("\n")
       fontFamily: root.fontFamily
+    }
+  }
+
+  // One window of a seat, on one line: its label, a meter, the share used
+  // (red from 90%, as LIMITS) and the time to its reset.
+  component SeatWindow: Item {
+    id: seatWindow
+    property var window: null
+    readonly property var now: Swap.project(window, root.nowMs)
+    readonly property bool alarming: !!now && now.percent >= 0.9
+
+    implicitHeight: windowLabel.implicitHeight
+
+    Text {
+      id: windowLabel
+      width: Style.space(44)
+      textFormat: Text.PlainText
+      text: seatWindow.window ? seatWindow.window.label : ""
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      elide: Text.ElideRight
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    Meter {
+      anchors.left: windowLabel.right
+      anchors.right: windowPercent.left
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+      thickness: Math.max(Style.space(3), Math.round(Style.spacing.controlHeight * 0.1))
+      value: seatWindow.now ? seatWindow.now.percent : -1
+      alarming: seatWindow.alarming
+    }
+
+    Text {
+      id: windowPercent
+      width: Style.space(34)
+      horizontalAlignment: Text.AlignRight
+      textFormat: Text.PlainText
+      text: Swap.percentText(seatWindow.window, root.nowMs)
+      color: seatWindow.alarming ? root.urgent : root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      anchors.right: windowReset.left
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    Text {
+      id: windowReset
+      width: Style.space(48)
+      horizontalAlignment: Text.AlignRight
+      textFormat: Text.PlainText
+      text: Swap.resetText(seatWindow.window, root.nowMs)
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
     }
   }
 
