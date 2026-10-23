@@ -1,8 +1,10 @@
 # Agents, with the account and the limits
 
-Omarchy's Agents widget with three additions: the session and weekly use in
+Omarchy's Agents widget with four additions: the session and weekly use in
 the bar; under the plan in the panel's hero, the account each CLI is logged in
-with; and, when gwath's token counter counts them, the tokens by project.
+with; the Claude seats [claude-swap](https://github.com/realiti4/claude-swap)
+manages, switched with a click; and, when gwath's token counter counts them,
+the tokens by project.
 
 ## In the bar
 
@@ -54,38 +56,49 @@ file read while it is being rewritten keeps the last value; a missing file
 (logged out) hides the line. The code is in `Account.js`; `Panel.qml` only runs
 it and draws the lines.
 
-### Other accounts
+### Accounts (claude-swap)
 
-Under the limits, the accounts you were logged in with before, on that tab's
-CLI, each with the session and weekly use last read and the time to each
-reset:
+With [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`) on the
+machine, the Claude Code tab lists, under the limits, every seat it manages,
+numbered as `cswap list` numbers them, each with its session and weekly use
+and the time to each reset:
 
 ```
-OTHER ACCOUNTS
-you@university.edu · University               seen 3h
+ACCOUNTS · AUTO ON                                 CSWAP ›
+#1 lab  you@university.edu · University
 Session 42% · 1h 50m   Weekly 63% · 3d 4h
+#2  you@gmail.com · Personal account                active
+Session 0%   Weekly 12% · 5d 20h
 ```
 
-Every time a provider's limits come in (on every bar refresh, every 5 minutes,
-open panel or not), they are filed under the account they were measured on,
-in `~/.local/state/omarchy/agents/accounts.json`: one entry per provider,
-email and organization, so two seats on one email stay apart.
+- The list is `cswap list --json`, read when the shell starts, when the panel
+  opens and after a switch. cswap keeps the readings (it asks Anthropic for
+  each seat's use and caches the answers); the panel keeps nothing.
+- **A click on a seat** runs `cswap switch <n> --json`: every running Claude
+  Code moves to that seat, as with `cswap switch` in a terminal. cswap's
+  message shows under the list, in red when it refused. The active seat is
+  not clickable.
+- **AUTO ON** when `cswap auto` is running (a process whose command line runs
+  `cswap auto`, found with `pgrep`); AUTO OFF otherwise. The auto-switch view
+  of cswap's own dashboard does not count.
+- **CSWAP ›** opens cswap's dashboard (`cswap tui`) in a floating terminal.
+- On the right of a seat: `active`, `held out` (`cswap disable`), the reason
+  its use can't be read (`token expired`), or `old reading` when cswap shows
+  the last reading it had. A window whose reset time has passed reads
+  `0% · reset`; a session window not yet opened has no reset time.
+- Without cswap, or when it fails, the section is not shown, and the hero
+  shows the account logged in alone. The Codex tab has no such list.
+- `cswapCommand` (default `cswap`) is the command run; its words split at
+  spaces (`uvx claude-swap`, say).
 
-- Claude Code: `claude-seat.sh` asks Anthropic (`api/oauth/profile`) whose
-  login token the collector probed with; the answer is cached per token in
-  `~/.cache/omarchy/agents/profiles/`, so that is one request per login or
-  token refresh. Only a fresh probe is filed: one not filed before and made
-  after the credentials last changed. `~/.claude.json`, which the hero reads,
-  can name another seat for a while after a switch (every running Claude Code
-  rewrites it), and Omarchy's collector reuses its last figures for a few
-  minutes, and whenever a probe fails, whichever seat they came from.
-- Codex keeps its login in one file, and its collector probes every time: the
-  account is read again from that file.
+The code is in `Swap.js` (tests: `node Swap.test.js`); `Panel.qml` runs the
+commands and draws the rows. `tests/panel-harness/run.sh --cswap` drives the
+panel against a stand-in for cswap (`tests/cswap-stub/`, made-up seats), which
+switches nothing.
 
-The account you are logged in with now is left out of the list (its limits
-are the section above). A window whose reset time has passed reads
-`0% · reset`; a session window not yet opened has no reset time. Deleting the
-file forgets the accounts. The code is in `Seats.js` (tests: `node Seats.test.js`) and `claude-seat.sh`.
+Until 23 Oct 2026 the panel kept its own ledger of other accounts
+(`Seats.js`, `claude-seat.sh`, `~/.local/state/omarchy/agents/accounts.json`);
+claude-swap does that job, and the ledger is gone.
 
 ### Tokens by project
 

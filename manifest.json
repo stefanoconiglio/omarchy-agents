@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "Stefano Coniglio, from Omarchy's Agents widget",
   "license": "MIT",
-  "description": "Omarchy's Agents widget, with the session and weekly use in the bar, the account each CLI is logged in with in the panel (for Claude Code, the seat's organization too), and the tokens by project when gwath's token counter counts them.",
+  "description": "Omarchy's Agents widget, with the session and weekly use in the bar, the account each CLI is logged in with in the panel (for Claude Code, the seat's organization too), the Claude seats claude-swap manages, switched with a click, and the tokens by project when gwath's token counter counts them.",
   "kinds": [
     "bar-widget"
   ],
@@ -40,7 +40,8 @@
       "syncFileName": "",
       "syncDeviceId": "",
       "projectsFile": "",
-      "tokensCommand": "gwath tokens"
+      "tokensCommand": "gwath tokens",
+      "cswapCommand": "cswap"
     },
     "schema": [
       {
@@ -97,6 +98,13 @@
         "label": "Tokens command",
         "defaultValue": "gwath tokens",
         "description": "Run as `<command> show --all` or `<command> show <project>` when ALL or a project is clicked; its words split at spaces."
+      },
+      {
+        "key": "cswapCommand",
+        "type": "string",
+        "label": "claude-swap command",
+        "defaultValue": "cswap",
+        "description": "claude-swap's command: run as `<command> list --json` when the panel opens, `<command> switch <n> --json` when a seat is clicked, `<command> tui` from CSWAP; its words split at spaces. Without it, ACCOUNTS does not show."
       }
     ]
   },

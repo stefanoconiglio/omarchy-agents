@@ -5,7 +5,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Account.js" as Account
-import "Seats.js" as Seats
+import "Swap.js" as Swap
 import "Projects.js" as Projects
 
 Panel {
@@ -37,99 +37,73 @@ Panel {
     var next = Object.assign({}, accountRecords)
     next[providerId] = record
     accountRecords = next
-    if (seatPending[providerId]) fileSeat(providerId, record, 0)
   }
 
-  // ---------- other accounts: the limits of every account seen ----------
+  // ---------- accounts: the Claude seats claude-swap manages ----------
   //
-  // New limits for a provider are filed under the account they were measured
-  // on (Seats.js). For Claude Code, claude-seat.sh asks Anthropic whose login
-  // token the collector probed with, and only a fresh probe is filed:
-  // ~/.claude.json, which the hero reads, can name another seat for a while
-  // after a switch, and the collector reuses its last figures whichever seat
-  // they came from. For Codex, whose login is one file, the account is read
-  // again from it; a read that comes from opening the panel files nothing.
-  readonly property string seatsFile: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/agents/accounts.json"
-  readonly property string claudeSeatScript: decodeURIComponent(Qt.resolvedUrl("claude-seat.sh").toString().replace(/^file:\/\//, ""))
-  property var seatLedger: Seats.parse("")
-  property bool seatLedgerLoaded: false
-  property var seatPending: ({})
-  property var seatSignatures: ({})
-  property bool claudeSeatAgain: false
-  // The seat of the token the limits above were measured with.
-  property var claudeSeat: null
-  readonly property var otherSeats: provider && seatLedgerLoaded
-    ? Seats.others(seatLedger, provider.providerId,
-        provider.providerId === "claude" && claudeSeat ? claudeSeat : (accountRecords[provider.providerId] || null))
-    : []
+  // claude-swap (`cswap`) keeps every Claude seat's login and reads each
+  // one's session and weekly use; ACCOUNTS lists them (Swap.js). A click on
+  // another seat switches to it (`cswap switch <n>`), which changes the seat
+  // every running Claude Code uses; the button opens cswap's dashboard. The
+  // list is read when the panel opens and after a switch. Without cswap the
+  // section stays away and the hero shows the account logged in alone.
+  readonly property var cswapCommand: Swap.command(setting("cswapCommand", "cswap"))
+  property var swapList: Swap.parse("")
+  property bool swapAuto: false
+  property int switchingTo: 0
+  property string swapMessage: ""
+  property bool swapMessageError: false
+  readonly property var swapSeats: provider && provider.providerId === "claude" ? swapList.seats : []
 
-  readonly property string limitsSignature: {
-    var parts = []
-    for (var i = 0; i < providers.length; i++)
-      parts.push(providers[i].providerId + "=" + JSON.stringify(providers[i].limits || []))
-    return parts.join("\n")
+  function readSeats() {
+    if (!swapListProc.running) swapListProc.running = true
+    if (!swapAutoProc.running) swapAutoProc.running = true
   }
 
-  onLimitsSignatureChanged: checkLimits()
-
-  function checkLimits() {
-    if (!seatLedgerLoaded) return
-    var pending = Object.assign({}, seatPending)
-    var signatures = {}
-    var readCodex = false
-    for (var i = 0; i < providers.length; i++) {
-      var p = providers[i]
-      var sig = JSON.stringify(p.limits || [])
-      signatures[p.providerId] = sig
-      if ((p.limits || []).length === 0 || seatSignatures[p.providerId] === sig) continue
-      if (p.providerId === "claude") readClaudeSeat()
-      else { pending[p.providerId] = true; readCodex = true }
-    }
-    seatSignatures = signatures
-    seatPending = pending
-    if (readCodex) readAccount()
+  function switchSeat(number) {
+    if (switchingTo !== 0 || number === swapList.active) return
+    switchingTo = number
+    swapMessage = ""
+    swapSwitchProc.answer = null
+    swapSwitchProc.exitCode = null
+    swapSwitchProc.command = Swap.switchArgv(cswapCommand, number)
+    swapSwitchProc.running = true
   }
 
-  function readClaudeSeat() {
-    if (claudeSeatProc.running) claudeSeatAgain = true
-    else claudeSeatProc.running = true
+  // Called when the switch's output and its exit are both in, in either order.
+  function switchDone() {
+    if (switchingTo === 0 || swapSwitchProc.answer === null || swapSwitchProc.exitCode === null) return
+    var result = Swap.switchResult(swapSwitchProc.answer, swapSwitchProc.exitCode)
+    switchingTo = 0
+    swapMessage = result.message
+    swapMessageError = !result.ok
+    readSeats()
+    readAccount()
   }
 
-  function setClaudeSeat(raw) {
-    var seat = Account.parseRecord(raw)
-    if (!seat || !seat.email) return
-    claudeSeat = seat
-    if (Seats.freshProbe(seatLedger, "claude", seat)) fileSeat("claude", seat, Number(seat.fetchedAtMs))
-  }
-
-  function fileSeat(providerId, account, probeMs) {
-    var pending = Object.assign({}, seatPending)
-    delete pending[providerId]
-    seatPending = pending
-    var p = null
-    for (var i = 0; i < providers.length; i++)
-      if (providers[i].providerId === providerId) p = providers[i]
-    var next = Seats.record(seatLedger, providerId, account, limitWindows(p), Date.now(), probeMs)
-    if (next === seatLedger) return
-    seatLedger = next
-    seatFileView.setText(JSON.stringify(next, null, 2) + "\n")
+  function openSwap() {
+    Util.execArgv(Swap.tuiArgv(root.cswapCommand))
+    root.close()
   }
 
   Process {
-    id: claudeSeatProc
-    command: ["bash", root.claudeSeatScript]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.setClaudeSeat(text) }
-    onExited: if (root.claudeSeatAgain) { root.claudeSeatAgain = false; root.readClaudeSeat() }
+    id: swapListProc
+    command: Swap.listArgv(root.cswapCommand)
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.swapList = Swap.parse(text) }
   }
 
-  FileView {
-    id: seatFileView
-    path: root.seatsFile
-    watchChanges: false
-    atomicWrites: true
-    printErrors: false
-    onLoaded: { root.seatLedger = Seats.parse(text()); root.seatLedgerLoaded = true; root.checkLimits() }
-    onLoadFailed: { root.seatLedgerLoaded = true; root.checkLimits() }
+  Process {
+    id: swapAutoProc
+    command: Swap.autoArgv(root.cswapCommand)
+    onExited: function(exitCode) { root.swapAuto = exitCode === 0 }
+  }
+
+  Process {
+    id: swapSwitchProc
+    property var answer: null
+    property var exitCode: null
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: { swapSwitchProc.answer = text; root.switchDone() } }
+    onExited: function(exitCode) { swapSwitchProc.exitCode = exitCode; root.switchDone() }
   }
 
   function readAccount() {
@@ -539,11 +513,13 @@ Panel {
     if (panelFlick) panelFlick.contentY = 0
     usage.refreshLimits()
     readAccount()
+    readSeats()
+    swapMessage = ""
     projectsFileView.reload()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
-  Component.onCompleted: readAccount()
+  Component.onCompleted: { readAccount(); readSeats() }
 
   Process {
     id: claudeAccountProc
@@ -980,7 +956,7 @@ Panel {
             }
           }
 
-          // ---------- Other accounts ----------
+          // ---------- Accounts (claude-swap) ----------
           PanelSeparator {
             visible: seatsSection.visible
             foreground: root.foreground
@@ -988,24 +964,65 @@ Panel {
 
           Column {
             id: seatsSection
-            visible: root.otherSeats.length > 0
+            visible: root.swapSeats.length > 0
             width: parent.width
             spacing: Style.space(10)
 
-            PanelSectionHeader {
-              text: "OTHER ACCOUNTS"
-              foreground: root.foreground
-              fontFamily: root.fontFamily
+            // ACCOUNTS, whether cswap auto runs, and the dashboard.
+            Item {
+              width: parent.width
+              implicitHeight: seatsHeader.implicitHeight
+
+              PanelSectionHeader {
+                id: seatsHeader
+                text: "ACCOUNTS · AUTO " + (root.swapAuto ? "ON" : "OFF")
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+              }
+
+              PanelSectionHeader {
+                anchors.right: parent.right
+                anchors.verticalCenter: seatsHeader.verticalCenter
+                text: "CSWAP ›"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                font.underline: swapHover.containsMouse
+
+                MouseArea {
+                  id: swapHover
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.openSwap()
+                }
+
+                PanelToolTip {
+                  visible: swapHover.containsMouse
+                  text: "claude-swap's dashboard, in a terminal"
+                  fontFamily: root.fontFamily
+                }
+              }
             }
 
             Repeater {
-              model: root.otherSeats
+              model: root.swapSeats
 
               SeatRow {
                 required property var modelData
                 width: seatsSection.width
                 seat: modelData
               }
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              visible: root.swapMessage !== ""
+              width: parent.width
+              text: root.swapMessage
+              color: root.swapMessageError ? root.urgent : root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
             }
           }
 
@@ -1239,64 +1256,106 @@ Panel {
     }
   }
 
-  // Another account, compactly: email and how long ago it was last read, then
-  // its session and weekly use, each with the time to its reset.
-  component SeatRow: Column {
+  // A seat, compactly: its number and alias as cswap counts them, the email
+  // (and the organization, for a seat in someone's), then its session and
+  // weekly use, each with the time to its reset. A click on a seat other than
+  // the active one switches to it.
+  component SeatRow: Item {
     id: seatRow
     property var seat: null
+    readonly property bool switchable: !!seat && !seat.active && root.switchingTo === 0
 
-    spacing: Style.space(3)
+    implicitHeight: seatColumn.implicitHeight + Style.spacing.lg
 
-    Item {
-      width: parent.width
-      implicitHeight: Math.max(seatEmail.implicitHeight, seatAge.implicitHeight)
+    Rectangle {
+      anchors.fill: parent
+      radius: Style.cornerRadius
+      color: root.alpha(root.foreground,
+        seatRow.seat && seatRow.seat.active ? 0.12 : (seatHover.containsMouse && seatRow.switchable ? 0.09 : 0.05))
+    }
 
-      Text {
-        id: seatEmail
-        textFormat: Text.PlainText
-        text: seatRow.seat ? Account.lines(seatRow.seat.provider, seatRow.seat).join(" · ") : ""
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        elide: Text.ElideRight
-        anchors.left: parent.left
-        anchors.right: seatAge.left
-        anchors.rightMargin: Style.spacing.sm
-        anchors.verticalCenter: parent.verticalCenter
+    Column {
+      id: seatColumn
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.leftMargin: Style.space(8)
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.space(3)
+
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(seatEmail.implicitHeight, seatNote.implicitHeight)
+
+        Text {
+          id: seatEmail
+          textFormat: Text.PlainText
+          text: seatRow.seat
+            ? Swap.badge(seatRow.seat) + "  " + Account.lines("claude", seatRow.seat).join(" · ")
+            : ""
+          color: root.foreground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.bold: !!seatRow.seat && seatRow.seat.active
+          elide: Text.ElideRight
+          anchors.left: parent.left
+          anchors.right: seatNote.left
+          anchors.rightMargin: Style.spacing.sm
+          anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Text {
+          id: seatNote
+          textFormat: Text.PlainText
+          text: !seatRow.seat ? ""
+            : root.switchingTo === seatRow.seat.number ? "switching…"
+            : seatHover.containsMouse && seatRow.switchable ? "switch ›"
+            : Swap.note(seatRow.seat)
+          color: root.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+        }
       }
 
-      Text {
-        id: seatAge
-        textFormat: Text.PlainText
-        text: seatRow.seat ? "seen " + Seats.ageText(seatRow.seat.seenAt, root.nowMs) : ""
-        color: root.dim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
+      Row {
+        width: parent.width
+        spacing: Style.space(14)
+
+        Repeater {
+          model: [
+            { glyph: "Session", window: seatRow.seat ? seatRow.seat.session : null },
+            { glyph: "Weekly", window: seatRow.seat ? seatRow.seat.weekly : null }
+          ]
+
+          Text {
+            required property var modelData
+            readonly property var now: Swap.project(modelData.window, root.nowMs)
+            textFormat: Text.PlainText
+            text: modelData.glyph + " " + Swap.windowText(modelData.window, root.nowMs)
+            color: now && now.percent >= 0.9 ? root.urgent : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+        }
       }
     }
 
-    Row {
-      width: parent.width
-      spacing: Style.space(14)
+    MouseArea {
+      id: seatHover
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: seatRow.switchable ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onClicked: if (seatRow.switchable) root.switchSeat(seatRow.seat.number)
+    }
 
-      Repeater {
-        model: [
-          { glyph: "Session", window: seatRow.seat ? seatRow.seat.session : null },
-          { glyph: "Weekly", window: seatRow.seat ? seatRow.seat.weekly : null }
-        ]
-
-        Text {
-          required property var modelData
-          readonly property var now: Seats.project(modelData.window, root.nowMs)
-          textFormat: Text.PlainText
-          text: modelData.glyph + " " + Seats.windowText(modelData.window, root.nowMs)
-          color: now && now.percent >= 0.9 ? root.urgent : root.dim
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-        }
-      }
+    PanelToolTip {
+      visible: seatHover.containsMouse && !!seatRow.seat
+      text: !seatRow.seat ? ""
+        : seatRow.seat.active ? "The seat Claude Code uses now"
+        : "Switch every Claude Code to this seat (cswap switch " + seatRow.seat.number + ")"
+      fontFamily: root.fontFamily
     }
   }
 
