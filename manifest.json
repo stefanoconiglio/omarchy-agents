@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "coniglio.agents",
-  "name": "My Agents",
+  "name": "Agents + Limits",
   "version": "1.0.0",
   "author": "Stefano Coniglio, from Omarchy's Agents widget",
   "license": "MIT",
@@ -14,7 +14,7 @@
     "barWidget": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "My Agents",
+    "displayName": "Agents + Limits",
     "description": "One bar icon and one panel: rate-limit meters with pace, today, the last week, and the all-time model breakdown for every subscription.",
     "category": "AI",
     "aliases": [

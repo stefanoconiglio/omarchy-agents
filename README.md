@@ -1,4 +1,4 @@
-# Agents, with the account and the limits
+# Agents + Limits: Omarchy's Agents, with the account and the limits
 
 Omarchy's Agents widget with four additions: the session and weekly use in
 the bar; under the plan in the panel's hero, the account each CLI is logged in
