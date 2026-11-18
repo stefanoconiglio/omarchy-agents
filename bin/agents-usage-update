@@ -1,0 +1,73 @@
+#!/bin/bash
+# Agents + Limits' usage update, run by Main.qml in place of Omarchy's
+# omarchy-agent-usage-update, with the same arguments:
+#   agents-usage-update [--force] [--limits-only] [--except <agent>]... [agent...]
+# Claude's record comes from this folder's agents-usage-claude, which reads
+# only what each transcript gained since the last pass; every other agent's
+# from Omarchy's own updater. Each record is written where Omarchy writes it,
+# ~/.local/state/omarchy/agents/usage/<agent>.json, the way Omarchy writes it.
+
+here="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+USAGE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/agents/usage"
+mkdir -p "$USAGE_DIR"
+
+flags=()
+only=()
+excepts=()
+declare -A excluded
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --force | --limits-only) flags+=("$1") ;;
+  --except)
+    excluded[$2]=1
+    excepts+=(--except "$2")
+    shift
+    ;;
+  *) only+=("$1") ;;
+  esac
+  shift
+done
+
+wanted() {
+  local agent="$1"
+  [[ -n ${excluded[$agent]} ]] && return 1
+  (( ${#only[@]} == 0 )) && return 0
+  local candidate
+  for candidate in "${only[@]}"; do
+    [[ $candidate == "$agent" ]] && return 0
+  done
+  return 1
+}
+
+# Omarchy's updater for the others: asked for none but claude, it is not run
+# at all, since an empty agent list means every agent to it.
+others=()
+for agent in "${only[@]}"; do
+  [[ $agent == claude ]] || others+=("$agent")
+done
+
+pids=()
+if (( ${#only[@]} == 0 || ${#others[@]} > 0 )); then
+  omarchy-agent-usage-update "${flags[@]}" "${excepts[@]}" --except claude "${others[@]}" &
+  pids+=($!)
+fi
+
+if wanted claude; then
+  (
+    if ! record=$("$here/agents-usage-claude" "${flags[@]}") || [[ -z $record ]] || ! jq -e . >/dev/null 2>&1 <<<"$record"; then
+      echo "agents-usage-update: claude collector failed" >&2
+      exit 1
+    fi
+    tmp=$(mktemp "$USAGE_DIR/.claude.XXXXXX")
+    printf '%s\n' "$record" >"$tmp"
+    mv "$tmp" "$USAGE_DIR/claude.json"
+  ) &
+  pids+=($!)
+fi
+
+status=0
+for pid in "${pids[@]}"; do
+  wait "$pid" || status=1
+done
+exit $status

@@ -1,0 +1,25 @@
+#!/bin/sh
+# A stand-in for claude-swap's `cswap`, for the tests: it logs its arguments
+# to $CSWAP_STUB_LOG and answers `list --json` with the made-up seats in
+# list.json beside it and `switch <n> --json` as cswap does. It switches
+# nothing; with $CSWAP_STUB_STATE it remembers the seat switched to there,
+# and lists that seat as the active one, as cswap would.
+here="$(cd "$(dirname "$0")" && pwd)"
+[ -n "${CSWAP_STUB_LOG:-}" ] && echo "$*" >> "$CSWAP_STUB_LOG"
+case "$1" in
+  list)
+    if [ -n "${CSWAP_STUB_STATE:-}" ] && [ -s "$CSWAP_STUB_STATE" ]; then
+      jq --argjson n "$(cat "$CSWAP_STUB_STATE")" \
+        '.activeAccountNumber = $n | .accounts |= map(.active = (.number == $n))' "$here/list.json"
+    else
+      cat "$here/list.json"
+    fi ;;
+  switch)
+    if [ "$2" = 3 ]; then
+      echo '{"schemaVersion":1,"error":{"type":"AccountNotFound","message":"No account 3"}}'
+      exit 1
+    fi
+    [ -n "${CSWAP_STUB_STATE:-}" ] && echo "$2" > "$CSWAP_STUB_STATE"
+    printf '{"schemaVersion":1,"switched":true,"from":{"number":2},"to":{"number":%s},"reason":"switched","message":"Switched to Account-%s (stub)","warnings":[]}\n' "$2" "$2" ;;
+  *) echo "cswap stub: $*" ;;
+esac

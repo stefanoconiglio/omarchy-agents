@@ -1,0 +1,399 @@
+# Agents + Limits: Omarchy's Agents, with the account and the limits
+
+Omarchy's Agents widget with four additions: the session and weekly use in
+the bar; under the plan in the panel's hero, the account each CLI is logged in
+with (on the Claude tab, while claude-swap's seats are listed, the active seat
+names it instead); the Claude seats [claude-swap](https://github.com/realiti4/claude-swap)
+manages, switched with a click; and, when gwath's token counter counts them,
+the tokens by project.
+
+## In the bar
+
+Left of the icon, as `󰔟 85%  󰃭 14%`: the share of the session (5-hour) and
+weekly limits used, Claude Code's by default, with the icon inside a soft
+outline that groups them. Each number is coloured by its own level: the bar's
+text colour, orange from 80%, red from 90%, in bold title-size numbers. The
+colours (`Attention.qml`, `Attention.js`): the theme's own orange when it has a
+real one (some themes give the name to green, grey or blue), a standard orange
+otherwise, and always a standard red; either one darkened or lightened just
+enough to read at 3:1 against the bar. Hover for the reset times; clicks do
+what the icon does.
+
+- `barProvider` (default `claude`; `codex` for Codex's) picks whose limits.
+  It does not follow the panel's tab: the icon names no provider, so the
+  numbers would change meaning unseen.
+- `barRefreshSec` (default 300, at least 60): how often the limits alone are
+  fetched, one request per provider, the same one the panel makes when it
+  opens. Omarchy's full refresh (`refreshIntervalSec`, 900) still runs.
+- A window whose reset time has passed shows 0% until the next refresh.
+- After a click on a seat in ACCOUNTS (below), the numbers move to that seat
+  the moment cswap answers, together with the "active" mark: cswap's reading
+  of it, the one ACCOUNTS shows. Omarchy's own reading takes over 26 s
+  later, once its record can no longer be the old seat's (Omarchy's collector
+  hands back any reading under 15 s old, whoever's seat it was). A switch
+  made outside the panel (`cswap` in a terminal, `cswap auto`) reaches the
+  bar at the next refresh.
+- On a vertical bar only the icon shows.
+
+## In the panel
+
+```
+Claude Code                      Codex
+PRO                              EDU
+you@gmail.com                    you@university.edu
+Personal account
+```
+
+For Claude Code the second line is the seat's organization: "Personal account"
+for a plan of your own, the organization's name for a seat in someone else's
+(a company's or a university's Team or Enterprise plan). With several seats on
+one email address, that line tells them apart. Codex shows the email alone.
+
+Omarchy reads the plan from files that don't hold the account, so the panel
+reads it itself, with `jq`, when the shell starts, when the panel opens and on
+refresh (`r`):
+
+- Claude Code: `oauthAccount.emailAddress` and `.organizationName` in
+  `~/.claude.json` (`$CLAUDE_CONFIG_DIR/.claude.json` when that is set). The
+  service names a personal plan's organization `<email>'s Organization`.
+- Codex: the `email` claim of the id token in `~/.codex/auth.json`
+  (`$CODEX_HOME/auth.json`). Only the email leaves `jq`.
+
+After `/login` to another account, the next opening of the panel shows it. A
+file read while it is being rewritten keeps the last value; a missing file
+(logged out) hides the line. The code is in `Account.js`; `Panel.qml` only runs
+it and draws the lines.
+
+### Accounts (claude-swap)
+
+With [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`) on the
+machine, the Claude Code tab lists every seat it manages, numbered as
+`cswap list` numbers them:
+
+```
+ACCOUNTS · AUTO ON                                 CSWAP ›
+#1 lab  you@university.edu                        ● active
+University
+5h     ━━━━━━━━──────────────────────    27%     4h 17m
+7d     ━━━━━━━━━━━━━━━━━━━━━━━━━─────    81%     2d 12h
+Fable  ──────────────────────────────     0%     2d 12h
+#2  you@gmail.com
+Personal account
+5h     ──────────────────────────────     0%
+7d     ━━━━━━━━━━━━━━━━━─────────────    57%     4d 15h
+```
+
+- The list is `cswap list --json`, read when the shell starts, when the panel
+  opens and after a switch. cswap keeps the readings (it asks Anthropic for
+  each seat's use and caches the answers); the panel keeps nothing.
+- Each seat shows its windows as `cswap watch` does: 5h, 7d and each
+  model's week (Fable, say), a meter, the share used and the time to the
+  reset; hover for the reset on the clock and whether the week runs ahead
+  of pace. On the Claude tab this replaces LIMITS, which shows only without
+  cswap (and on the other tabs).
+- **A click on a seat** runs `cswap switch <n> --json`: every running Claude
+  Code moves to that seat, as with `cswap switch` in a terminal. On cswap's
+  answer the "active" mark and the bar's numbers move to that seat at once;
+  the list is then read again. cswap's message shows under the list, in red
+  when it refused. The active seat is not clickable.
+- **AUTO ON** when `cswap auto` is running (a process whose command line runs
+  `cswap auto`, found with `pgrep`); AUTO OFF otherwise. The auto-switch view
+  of cswap's own dashboard does not count.
+- **CSWAP ›** opens cswap's dashboard (`cswap tui`) in a floating terminal.
+- On the right of a seat: `active`, `held out` (`cswap disable`), the reason
+  its use can't be read (`token expired`), or `old reading` when cswap shows
+  the last reading it had. A window whose reset time has passed reads
+  0% and `reset`; a session window not yet opened has no reset time.
+- While seats are listed, the hero shows no account line, since the active
+  seat names it, and TOKENS BY DAY is drawn on the seats' grid: its labels,
+  its bars' two ends and its tokens line up with the seats' labels, meters
+  and times to the reset.
+- Without cswap, or when it fails, the section is not shown, and the hero
+  shows the account logged in alone. The Codex tab has no such list.
+- `cswapCommand` (default `cswap`) is the command run; its words split at
+  spaces. AUTO is found by the command's first word, so a command run
+  through another program reads AUTO OFF.
+
+The code is in `Swap.js` (tests: `node Swap.test.js`); `Panel.qml` runs the
+commands and draws the rows. `tests/panel-harness/run.sh --cswap` drives the
+panel against a stand-in for cswap (`tests/cswap-stub/`, made-up seats), which
+switches nothing, and prints PASS or FAIL for the mark and the bar's numbers
+after a switch, for the hero's account line (hidden on the Claude tab with
+seats, shown on the others), and for the seats and the days on one grid. The
+harness runs a stand-in for `omarchy-agent-usage-update`
+that does nothing (`tests/usage-stub/`), so it never rewrites the records the
+bar shows; the panel runs it as its `usageCommand`, and the harness prints
+PASS when it did.
+
+Until 23 Oct 2026 the panel kept its own ledger of other accounts
+(`Seats.js`, `claude-seat.sh`, `~/.local/state/omarchy/agents/accounts.json`);
+claude-swap does that job, and the ledger is gone.
+
+### Tokens by project
+
+When gwath's token counter (`gwath tokens`, in gwath, not published, which
+counts each project's tokens day by day from the same transcripts) has
+written its summary, TOKENS BY MODEL can switch to TOKENS BY PROJECT:
+
+```
+TOKENS BY MODEL PROJECT                  7 DAYS · ALL 42 ›
+alpha                                               1.2B
+beta                                              640.0M
+Drive:…/lectures                                   85.3M
+gamma                                              12.1M
+```
+
+- The four projects this tab's agent used most in the last 7 days, most
+  first, each with a bar scaled to the first, as the model rows are. Hover a
+  row for its path and its tokens today, in the last 7 and 30 days and in
+  all, and the time of the count.
+- Click MODEL or PROJECT in the header, or press `p`, to switch; the choice
+  holds until the shell restarts. Projects come first when the summary is
+  there; without it the section is Omarchy's TOKENS BY MODEL, unchanged. Same
+  number of rows as the models, so the panel keeps its height.
+- A click on a project opens its days, on ALL every project of every agent,
+  in a floating terminal: `gwath tokens show <project>` and `gwath tokens show --all`,
+  paged by `less` (`q` closes it).
+
+The summary is `~/.local/state/gwath/tokens.json` (setting
+`projectsFile`), watched by the panel; the command is `gwath tokens` (setting
+`tokensCommand`, its words split at spaces; `show` and the project follow).
+Anything that writes the summary in this form works:
+
+```json
+{"updated": "2026-10-14 23:00", "today": "2026-10-14",
+ "projects": [{"path": "~/repos/alpha", "name": "alpha",
+               "agents": {"claude": {"today": 0, "week": 0, "month": 0, "all": 0},
+                          "codex": {"today": 0, "week": 0, "month": 0, "all": 0}}}]}
+```
+
+`week` is the last 7 days, `month` the last 30, `all` everything counted;
+agents are named as the panel's tabs (`claude`, `codex`). The code is in
+`Projects.js` (tests: `node Projects.test.js`); `Panel.qml` draws it.
+`tests/panel-harness/run.sh` loads `Panel.qml` in a Quickshell instance of its
+own, with no window, and prints what the projects view shows on each tab and
+after `p` (with `HARNESS_PROJECTS=/nonexistent`, the fallback to the models).
+
+### Claude's usage, read incrementally
+
+Omarchy's Claude collector reads every Claude Code transcript under
+`~/.claude/projects` from its first byte at each refresh: on a machine used
+for months, gigabytes and minutes of a core, every 15 minutes and at each
+opening of the panel. The widget runs its own update instead,
+`bin/agents-usage-update` (setting `usageCommand`; empty: that one), with
+Omarchy's arguments (`--force`, `--limits-only`, `--except <agent>`, agent
+names): it runs Omarchy's `omarchy-agent-usage-update` for every agent but
+Claude, and `bin/agents-usage-claude` for Claude, and writes each record where
+and as Omarchy does, so the panel reads the same records.
+
+`bin/agents-usage-claude` is Omarchy's collector (its version and checksum in
+its header) with the transcript scan made incremental. It keeps, in
+`~/.cache/omarchy-agents/claude-transcripts-<hash>.sqlite`, how far each
+transcript was read and each message counted, and at each pass reads only the
+complete lines appended since; a line still being written waits for the next
+pass. A transcript deleted, replaced or cut short is forgotten (its messages
+pass to another transcript that repeats them, as a resumed session does) and,
+if still there, read again from its start. The record it prints, the limits
+probe and its cache (`~/.cache/omarchy/agent-usage/claude-limits.json`, which
+claude-swap and the bar's stand-in read) are Omarchy's, unchanged.
+
+- The first pass reads everything once; then a pass reads what was written
+  since the last one, in well under a second.
+- `bin/agents-usage-claude --rebuild` forgets what was read and reads every
+  transcript again; `--stats` prints what a pass read. Deleting the
+  `.sqlite` file does the same as `--rebuild`, at the next refresh.
+- A transcript rewritten in place, same file and no shorter, with the change
+  only before the last 64 bytes it read, goes unseen: Claude Code only
+  appends to them.
+- A message with no timestamp keeps the day it was first read on; Omarchy's
+  scan gives it each scan's day.
+- A stopgap until this machine moves to Omarchy 4.5 (released 5 Nov 2026),
+  whose shared collector module (`shell/plugins/agents/collectors.py`) keeps
+  an index of its own and reads only what each transcript gained. Once on
+  4.5, set `usageCommand` to `omarchy-agent-usage-update` (in the widget's
+  settings in `~/.config/omarchy/shell.json`), restart the shell, and Omarchy's
+  collector is back; `bin/` and `~/.cache/omarchy-agents/` can then go.
+
+Tests: `tests/usage-claude.test.py` checks, against Omarchy's own scan, that
+each pass prints what a full scan prints after lines are appended, a line is
+half written, a resumed session repeats messages, a transcript is deleted,
+replaced, cut short or rewritten, and that the update hands the right
+arguments to Omarchy's updater; all in a temporary folder.
+
+## Install
+
+```bash
+omarchy plugin add https://github.com/stefanoconiglio/omarchy-agents.git --enable
+```
+
+The widget declares itself a clone of `omarchy.agents`, so enabling it puts it
+in place of Omarchy's Agents widget with that widget's settings, and calls to
+`omarchy.agents` reach it. To go back:
+
+```bash
+omarchy plugin remove coniglio.agents
+```
+
+Requires Omarchy 4. The first commit is `omarchy plugin clone omarchy.agents`
+from Omarchy 4.0.4, unchanged; when an Omarchy update changes
+`/usr/share/omarchy/shell/plugins/agents/`, compare it with that commit and
+merge; when it changes `/usr/share/omarchy/bin/omarchy-agent-usage-claude`
+(its checksum differs from the one in `bin/agents-usage-claude`'s header),
+merge it into everything but the "local scan" section. After editing,
+`omarchy restart shell`.
+
+MIT, as Omarchy ([LICENSE](LICENSE)). Omarchy's own description of the widget
+follows.
+
+---
+
+## Agents (Omarchy)
+
+One bar icon and one panel for every AI coding subscription on the machine.
+The panel is strictly a display: it watches the usage records that
+`omarchy-agent-usage-update` writes to `~/.local/state/omarchy/agents/usage/`
+and draws whatever appears there. `Panel.qml` owns the bar button and the
+popup; `Main.qml` discovers and watches the records (and handles the optional
+cross-device aggregation); `Agent.qml` is the per-record file watcher.
+
+## Panel
+
+- **Hero** — the mark, the tool, and the plan it runs on ("Max 20x", "Pro").
+  Auth and endpoint problems replace the plan line and repeat in a card.
+- **Subscription switch** — one chip per enabled agent (`h`/`l` or click).
+  It appears only when more than one agent is enabled.
+- **Limits** — the percentage of each allowance used, a matching meter, and
+  the time until the session or weekly window resets.
+- **Balance** — prepaid agents report a credit ledger instead of limits:
+  remaining credit, a fuel-gauge meter that drains toward empty, and
+  funded-versus-spent detail.
+- **Tokens by day** — one row per day for the last week: day, bar, tokens, with today
+  bolded at the bottom. Hover today for its prompt and session count.
+- **Tokens by model** — tokens per model with the bar behind each row scaled
+  to the heaviest model,
+  the same way the weekly chart scales to its busiest day. Hover for the
+  input / output / cache split.
+
+A subscription appears only when it is enabled in settings and has actually
+recorded usage — on this machine or on a synced one. With one such agent
+there is no switch row at all; with none, the module leaves the bar entirely
+rather than sitting there with nothing to say. A CLI installed mid-session
+shows up at the next refresh, so nothing polls the disk waiting for it.
+
+That self-hiding is why the widget ships in the default bar layout: a machine
+that has never run an AI coding agent draws nothing, and the icon arrives on
+its own the first time a scan finds usage. Drop it with
+`omarchy plugin disable omarchy.agents`.
+
+## Data
+
+Each agent is one JSON record in `~/.local/state/omarchy/agents/usage/`,
+written by `omarchy-agent-usage-update`. That command runs one
+`omarchy-agent-usage-<agent>` collector per agent; the widget invokes it
+on its refresh timer and whenever you ask for a refresh, and picks up any
+record that lands in the directory regardless of who wrote it.
+
+Adding an agent therefore never touches this plugin: ship a collector that
+prints the record contract (see the `claude` and `codex` collectors in
+`bin/`), and the panel gains a tab. An `assets/<id>.svg` mark is optional —
+with an `assets/<id>-light.svg` twin if the mark needs a dark variant for
+light surfaces — and the bar glyph stands in when there is none.
+
+| Collector | Limits | Local stats |
+|---|---|---|
+| `claude` | Anthropic's OAuth usage endpoint (5-hour session + 7-day weekly) | `~/.claude/projects` transcripts, opencode sessions on an Anthropic provider, plus `stats-cache.json` and `history.jsonl` as fallback |
+| `codex` | The Codex app-server RPC | native Codex CLI session files (plus pi and opencode sessions) |
+| `fireworks` | Estimated prepaid balance: configured funding minus rated account costs | Fireworks billing API, grouped by day and model for the last 30 days |
+
+Claude limits need a signed-in CLI; without credentials the panel says so and
+falls back to local stats only. A non-default Claude directory is honored via
+`CLAUDE_CONFIG_DIR`, Codex via `CODEX_HOME`. Fireworks reads
+`FIREWORKS_API_KEY` and `FIREWORKS_ACCOUNT_ID` first, then
+`~/.fireworks/auth.ini` (which `firectl set-api-key` creates), then the key
+opencode stores in `~/.local/share/opencode/auth.json` when Fireworks is
+signed in there.
+
+### Fireworks balance
+
+The collector first asks the account's `:getBalance` endpoint for the real
+prepaid ledger. That endpoint exists but is permission-gated, and as of
+August 2026 no console-issued API key passes it — Fireworks appears to
+reserve it for the dashboard session. The probe stays because it is cheap
+and the live figure lights up automatically if Fireworks ever opens it to
+keys. Until then the collector falls back to estimating the balance from
+configuration in `~/.config/omarchy/agents/fireworks.json`:
+
+```json
+{
+  "accountId": "",
+  "fundedAmount": 20,
+  "fundedAt": "2026-07-01"
+}
+```
+
+Set `fundedAmount` to the credits purchased and optionally `fundedAt` to the
+purchase date; with no date, the collector uses the account creation time. It
+subtracts rated account costs and the panel labels the result as estimated.
+For a later top-up, increase `fundedAmount` by the new credit while keeping
+the original `fundedAt`, so both the funding and spend still cover the same
+period. `accountId` only matters when one API key can access several
+accounts. Without a configured `fundedAmount` the tab still shows token
+usage, just no balance. With a live ledger, `fundedAmount` is optional and
+only adds the meter and the spent-of-funded line under the real figure.
+
+## Interactions
+
+- Bar icon: left = panel, right = launch agent, middle = next subscription.
+- Panel: `h`/`l` switch subscription, `j`/`k` scroll, `r` or Enter refresh,
+  Tab moves to the neighboring bar panel, Esc closes.
+- IPC: `omarchy-shell omarchy.agents <open|close|toggle|refresh|next>`.
+
+## Settings
+
+Settings live in the widget's entry in `~/.config/omarchy/shell.json`. The
+top-level keys can be set with
+`omarchy bar set omarchy.agents <key> <value>`:
+
+| Key | Default | What it does |
+|---|---|---|
+| `refreshIntervalSec` | `900` | How often the usage records regenerate |
+| `syncMode` | `"Off"` | `"On"` writes this machine's snapshot and merges the others |
+| `syncDir` | `""` | A folder synced by Syncthing, Dropbox, rsync, … |
+| `syncFileName` | `<hostname>.json` | This machine's snapshot file |
+| `syncDeviceId` | hostname | Stable device name inside the snapshot |
+
+Numbers need `--json`, or they land in `shell.json` as strings:
+
+```bash
+omarchy bar set omarchy.agents refreshIntervalSec 300 --json
+omarchy bar set omarchy.agents syncDir '~/Sync/agent-usage'
+```
+
+Per-agent enablement is nested, and `set` writes its key literally rather
+than walking a dotted path — so pass the whole `providers` object as JSON (or
+edit `shell.json` directly):
+
+```bash
+omarchy bar set omarchy.agents providers '{
+  "claude": { "enabled": true },
+  "codex": { "enabled": false },
+  "fireworks": { "enabled": true }
+}' --json
+```
+
+`enabled` defaults to `true` for every discovered agent; set it to `false` to
+hide a subscription that is installed. Disabled agents are also skipped when
+the records regenerate.
+
+With `syncMode` on, every `*.json` snapshot in `syncDir` is merged, so today,
+the last 7 days, and the all-time totals cover every machine you code on —
+active days are unioned by date rather than summed. Rate limits stay
+per-account and are never merged. A record may declare `"scope": "account"`
+when its stats are account-global rather than machine-local (Fireworks'
+billing API); those merge by taking the widest value instead of summing, so
+the same account synced from two machines is not counted twice.
+
+One caveat on "all-time": the Codex collector only reads native session files
+touched in the last 30 days, and Fireworks requests the last 30 days from its
+billing API, so their totals and day counts cover that window. Claude's cover
+every transcript still on disk.

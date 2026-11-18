@@ -1,0 +1,9 @@
+#!/bin/sh
+# A stand-in for Omarchy's omarchy-agent-usage-update, first on the harness's
+# PATH (run.sh): it does nothing, so the panel under test reads the usage
+# records as they are and a test never rescans the transcripts or rewrites
+# the records the running bar shows. The harness also gives it to the panel
+# as its usageCommand (in place of bin/agents-usage-update) and checks, from
+# USAGE_STUB_LOG, that it was run.
+[ -n "${USAGE_STUB_LOG:-}" ] && echo "$*" >> "$USAGE_STUB_LOG"
+exit 0

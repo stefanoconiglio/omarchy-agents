@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "id": "coniglio.agents",
+  "name": "Agents + Limits",
+  "version": "1.0.0",
+  "author": "Stefano Coniglio, from Omarchy's Agents widget",
+  "license": "MIT",
+  "description": "Omarchy's Agents widget, with the session and weekly use in the bar, the account each CLI is logged in with in the panel (for Claude Code, the seat's organization too), the Claude seats claude-swap manages, switched with a click, and the tokens by project when gwath's token counter counts them.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Agents + Limits",
+    "description": "One bar icon and one panel: rate-limit meters with pace, today, the last week, and the all-time model breakdown for every subscription.",
+    "category": "AI",
+    "aliases": [
+      "agents",
+      "model-usage"
+    ],
+    "allowMultiple": false,
+    "defaults": {
+      "providers": {
+        "claude": {
+          "enabled": true
+        },
+        "codex": {
+          "enabled": true
+        },
+        "fireworks": {
+          "enabled": true
+        }
+      },
+      "refreshIntervalSec": 900,
+      "syncMode": "Off",
+      "syncDir": "",
+      "syncFileName": "",
+      "syncDeviceId": "",
+      "projectsFile": "",
+      "tokensCommand": "gwath tokens",
+      "cswapCommand": "cswap",
+      "usageCommand": ""
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 30,
+        "max": 3600,
+        "step": 30,
+        "defaultValue": 900
+      },
+      {
+        "key": "syncMode",
+        "type": "enum",
+        "label": "Synced aggregation",
+        "options": [
+          "Off",
+          "On"
+        ],
+        "defaultValue": "Off",
+        "description": "When On, write this machine's local usage snapshot and merge snapshots from other machines."
+      },
+      {
+        "key": "syncDir",
+        "type": "path",
+        "label": "Sync folder",
+        "defaultValue": "",
+        "description": "A folder synced by Syncthing, Dropbox, rsync, etc."
+      },
+      {
+        "key": "syncFileName",
+        "type": "string",
+        "label": "Snapshot file name",
+        "defaultValue": "",
+        "description": "Optional. Defaults to <hostname>.json. Use a different file name on each machine, such as laptop.json or desktop.json."
+      },
+      {
+        "key": "syncDeviceId",
+        "type": "string",
+        "label": "Device id",
+        "defaultValue": "",
+        "description": "Optional stable device name used inside synced aggregate snapshots."
+      },
+      {
+        "key": "projectsFile",
+        "type": "path",
+        "label": "Projects summary",
+        "defaultValue": "",
+        "description": "The summary gwath's token counter (`gwath tokens`) writes. Empty: ~/.local/state/gwath/tokens.json. Without it, TOKENS BY PROJECT does not show."
+      },
+      {
+        "key": "tokensCommand",
+        "type": "string",
+        "label": "Tokens command",
+        "defaultValue": "gwath tokens",
+        "description": "Run as `<command> show --all` or `<command> show <project>` when ALL or a project is clicked; its words split at spaces."
+      },
+      {
+        "key": "cswapCommand",
+        "type": "string",
+        "label": "claude-swap command",
+        "defaultValue": "cswap",
+        "description": "claude-swap's command: run as `<command> list --json` when the panel opens, `<command> switch <n> --json` when a seat is clicked, `<command> tui` from CSWAP; its words split at spaces. Without it, ACCOUNTS does not show."
+      },
+      {
+        "key": "usageCommand",
+        "type": "string",
+        "label": "Usage update command",
+        "defaultValue": "",
+        "description": "Run as `<command> [--force|--limits-only] [--except <agent>]... [agent...]` on each refresh, as Omarchy's omarchy-agent-usage-update. Empty: the widget's bin/agents-usage-update, which reads Claude's transcripts incrementally."
+      }
+    ]
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.agents"
+  }
+}
